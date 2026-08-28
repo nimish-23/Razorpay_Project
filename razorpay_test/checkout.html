@@ -14,6 +14,9 @@
 
     <script>
 
+        var urlParams = new URLSearchParams(window.location.search);
+        var orderId = urlParams.get('order_id') || prompt("Please enter the Order ID from your terminal:");
+
         var options = {
             "key": "rzp_test_TV8OijgvlDSzrK",
 
@@ -23,7 +26,7 @@
             "name": "My Test App",
             "description": "Razorpay Test Payment",
 
-            "order_id": "order_TV8d7vwRzCrKdd",
+            "order_id": orderId,
 
             "handler": function (response) {
 

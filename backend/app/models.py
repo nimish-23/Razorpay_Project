@@ -80,6 +80,12 @@ class IntentRequest(BaseModel):
     text: str
 
 
+class IntentResponse(BaseModel):
+    """Response containing the generated proposal and the policy evaluation decision."""
+    proposal: Proposal
+    decision: Decision
+
+
 class PolicyCreateRequest(BaseModel):
     """What the user/frontend sends in."""
     max_amount: int                       # paise, e.g. 200000 = ₹2,000

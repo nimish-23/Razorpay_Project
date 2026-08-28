@@ -2,7 +2,9 @@ import razorpay
 import os
 from dotenv import load_dotenv
 
-load_dotenv() # Loads from .env if present
+# Load from the backend/.env file we created earlier
+dotenv_path = os.path.join(os.path.dirname(__file__), '..', 'backend', '.env')
+load_dotenv(dotenv_path)
 
 KEY_ID = os.getenv("RAZORPAY_KEY_ID")
 KEY_SECRET = os.getenv("RAZORPAY_KEY_SECRET")
