@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Razorpay Test</title>
+</head>
+
+<body>
+
+    <h1>Razorpay Test Payment</h1>
+
+    <button id="rzp-button">Pay ₹100</button>
+
+    <script src="https://checkout.razorpay.com/v1/checkout.js"></script>
+
+    <script>
+
+        var options = {
+            "key": "rzp_test_TV8OijgvlDSzrK",
+
+            "amount": "10000",
+            "currency": "INR",
+
+            "name": "My Test App",
+            "description": "Razorpay Test Payment",
+
+            "order_id": "order_TV8d7vwRzCrKdd",
+
+            "handler": function (response) {
+
+                console.log("Payment successful!");
+
+                console.log(
+                    "Payment ID:",
+                    response.razorpay_payment_id
+                );
+
+                console.log(
+                    "Order ID:",
+                    response.razorpay_order_id
+                );
+
+                console.log(
+                    "Signature:",
+                    response.razorpay_signature
+                );
+
+                alert("Payment successful!");
+            }
+        };
+
+        var rzp = new Razorpay(options);
+
+        document.getElementById("rzp-button").onclick = function(e) {
+
+            rzp.open();
+
+            e.preventDefault();
+        };
+
+    </script>
+
+</body>
+</html>
