@@ -1,0 +1,260 @@
+[
+  {
+    "id": "shoe_001",
+    "name": "Air Runner Black",
+    "category": "shoes",
+    "price": 2199,
+    "currency": "INR",
+    "stock": 12,
+    "attributes": {
+      "color": "black",
+      "sizes_available": [7, 8, 9, 10]
+    }
+  },
+  {
+    "id": "shoe_002",
+    "name": "Street Max White",
+    "category": "shoes",
+    "price": 2499,
+    "currency": "INR",
+    "stock": 8,
+    "attributes": {
+      "color": "white",
+      "sizes_available": [6, 7, 8, 9]
+    }
+  },
+  {
+    "id": "shoe_003",
+    "name": "Velocity Blue",
+    "category": "shoes",
+    "price": 2999,
+    "currency": "INR",
+    "stock": 15,
+    "attributes": {
+      "color": "blue",
+      "sizes_available": [7, 8, 9, 10, 11]
+    }
+  },
+  {
+    "id": "shoe_004",
+    "name": "Urban Walk Grey",
+    "category": "shoes",
+    "price": 1899,
+    "currency": "INR",
+    "stock": 6,
+    "attributes": {
+      "color": "grey",
+      "sizes_available": [6, 7, 8, 9, 10]
+    }
+  },
+  {
+    "id": "shoe_005",
+    "name": "Trail Pro Green",
+    "category": "shoes",
+    "price": 3499,
+    "currency": "INR",
+    "stock": 10,
+    "attributes": {
+      "color": "green",
+      "sizes_available": [8, 9, 10, 11]
+    }
+  },
+
+  {
+    "id": "earbud_001",
+    "name": "SoundBeat Pro",
+    "category": "earbuds",
+    "price": 2499,
+    "currency": "INR",
+    "stock": 20,
+    "attributes": {
+      "color": "black",
+      "battery_hours": 30,
+      "noise_cancellation": true
+    }
+  },
+  {
+    "id": "earbud_002",
+    "name": "AirPods Lite",
+    "category": "earbuds",
+    "price": 1799,
+    "currency": "INR",
+    "stock": 15,
+    "attributes": {
+      "color": "white",
+      "battery_hours": 24,
+      "noise_cancellation": false
+    }
+  },
+  {
+    "id": "earbud_003",
+    "name": "BassX Wireless",
+    "category": "earbuds",
+    "price": 1299,
+    "currency": "INR",
+    "stock": 25,
+    "attributes": {
+      "color": "blue",
+      "battery_hours": 20,
+      "noise_cancellation": false
+    }
+  },
+  {
+    "id": "earbud_004",
+    "name": "QuietPods ANC",
+    "category": "earbuds",
+    "price": 3299,
+    "currency": "INR",
+    "stock": 9,
+    "attributes": {
+      "color": "black",
+      "battery_hours": 36,
+      "noise_cancellation": true
+    }
+  },
+  {
+    "id": "earbud_005",
+    "name": "MiniBuds S",
+    "category": "earbuds",
+    "price": 999,
+    "currency": "INR",
+    "stock": 30,
+    "attributes": {
+      "color": "red",
+      "battery_hours": 18,
+      "noise_cancellation": false
+    }
+  },
+
+  {
+    "id": "bag_001",
+    "name": "UrbanPack 20L",
+    "category": "backpacks",
+    "price": 1499,
+    "currency": "INR",
+    "stock": 18,
+    "attributes": {
+      "color": "black",
+      "capacity_liters": 20,
+      "laptop_size": 15
+    }
+  },
+  {
+    "id": "bag_002",
+    "name": "TravelPro 35L",
+    "category": "backpacks",
+    "price": 2799,
+    "currency": "INR",
+    "stock": 10,
+    "attributes": {
+      "color": "grey",
+      "capacity_liters": 35,
+      "laptop_size": 17
+    }
+  },
+  {
+    "id": "bag_003",
+    "name": "Campus Classic",
+    "category": "backpacks",
+    "price": 999,
+    "currency": "INR",
+    "stock": 25,
+    "attributes": {
+      "color": "blue",
+      "capacity_liters": 18,
+      "laptop_size": 15
+    }
+  },
+  {
+    "id": "bag_004",
+    "name": "Explorer Outdoor",
+    "category": "backpacks",
+    "price": 2199,
+    "currency": "INR",
+    "stock": 12,
+    "attributes": {
+      "color": "green",
+      "capacity_liters": 30,
+      "laptop_size": 16
+    }
+  },
+  {
+    "id": "bag_005",
+    "name": "Metro Slim",
+    "category": "backpacks",
+    "price": 1299,
+    "currency": "INR",
+    "stock": 14,
+    "attributes": {
+      "color": "navy",
+      "capacity_liters": 16,
+      "laptop_size": 14
+    }
+  },
+
+  {
+    "id": "watch_001",
+    "name": "PulseFit X1",
+    "category": "smartwatches",
+    "price": 3999,
+    "currency": "INR",
+    "stock": 10,
+    "attributes": {
+      "color": "black",
+      "display": "AMOLED",
+      "water_resistant": true
+    }
+  },
+  {
+    "id": "watch_002",
+    "name": "ActiveWatch S",
+    "category": "smartwatches",
+    "price": 2999,
+    "currency": "INR",
+    "stock": 16,
+    "attributes": {
+      "color": "silver",
+      "display": "LCD",
+      "water_resistant": true
+    }
+  },
+  {
+    "id": "watch_003",
+    "name": "FitTrack Pro",
+    "category": "smartwatches",
+    "price": 4499,
+    "currency": "INR",
+    "stock": 7,
+    "attributes": {
+      "color": "blue",
+      "display": "AMOLED",
+      "water_resistant": true
+    }
+  },
+  {
+    "id": "watch_004",
+    "name": "SmartTime Mini",
+    "category": "smartwatches",
+    "price": 1999,
+    "currency": "INR",
+    "stock": 20,
+    "attributes": {
+      "color": "pink",
+      "display": "LCD",
+      "water_resistant": false
+    }
+  },
+  {
+    "id": "watch_005",
+    "name": "Titan Sport",
+    "category": "smartwatches",
+    "price": 3499,
+    "currency": "INR",
+    "stock": 11,
+    "attributes": {
+      "color": "black",
+      "display": "AMOLED",
+      "water_resistant": true
+    }
+  }
+]

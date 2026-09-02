@@ -1,21 +1,28 @@
-"""
-SQLite database setup via SQLModel.
-Fastest option for hackathon — zero infra, single file DB.
-"""
+from pathlib import Path
 
 from sqlmodel import SQLModel, Session, create_engine
 
-DATABASE_URL = "sqlite:///./trust_layer.db"
+from app.models import Product, Order, AuditLog
 
-engine = create_engine(DATABASE_URL, echo=False)
+
+# backend/
+BASE_DIR = Path(__file__).resolve().parent.parent
+
+# backend/merchant.db
+DATABASE_PATH = BASE_DIR / "merchant.db"
+
+# Convert Windows path to SQLite-compatible path
+DATABASE_URL = f"sqlite:///{DATABASE_PATH.as_posix()}"
+
+engine = create_engine(
+    DATABASE_URL,
+    connect_args={"check_same_thread": False},
+)
 
 
 def create_db_and_tables():
-    """Create all SQLModel tables. Called once at app startup."""
     SQLModel.metadata.create_all(engine)
 
 
 def get_session():
-    """FastAPI dependency — yields a DB session per request."""
-    with Session(engine) as session:
-        yield session
+    return Session(engine)
