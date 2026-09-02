@@ -1,6 +1,0 @@
-fastapi
-uvicorn[standard]
-sqlmodel
-razorpay
-python-dotenv
-httpx
