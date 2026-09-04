@@ -50,6 +50,7 @@ def test_mcp_transaction_authorization_and_read_only_tools():
         unauthorized = mcp_server.create_order(
             item_id="shoe_auth_001",
             selected_attributes={"size": 9},
+            authorization_token="ap_demo_invalid",
         )
         assert unauthorized["authorized"] is False
         assert unauthorized["error"] == "agent_not_authorized"
@@ -68,7 +69,6 @@ def test_mcp_transaction_authorization_and_read_only_tools():
         authorized = mcp_server.create_order(
             item_id="shoe_auth_001",
             selected_attributes={"size": 9},
-            authorization_token=token,
         )
         assert authorized["success"] is True
         order_id = authorized["order"]["order_id"]
@@ -79,7 +79,10 @@ def test_mcp_transaction_authorization_and_read_only_tools():
         status = mcp_server.get_order_status("ORD-NOT-FOUND")
         assert status["success"] is False
 
-        unauthorized_payment = mcp_server.create_payment(order_id)
+        unauthorized_payment = mcp_server.create_payment(
+            order_id,
+            authorization_token="ap_demo_invalid",
+        )
         assert unauthorized_payment["authorized"] is False
 
 
@@ -148,8 +151,27 @@ def test_authorized_mcp_create_payment_preserves_existing_flow():
 
         payment_result = mcp_server.create_payment(
             order_id,
-            authorization_token=token,
         )
         assert payment_result["success"] is True
         assert payment_result["payment"]["payment_link_id"] == "plink_auth_001"
         mock_client.payment_link.create.assert_called_once()
+
+
+def test_stdio_session_without_active_authorization_rejects_transactions():
+    engine = create_test_engine()
+    seed_product(engine)
+    session_id = "sess_mcp_unauthorized"
+
+    @contextmanager
+    def session_context():
+        with Session(engine) as session:
+            yield session
+
+    with patch.object(mcp_server, "get_session", session_context), patch.object(
+        mcp_server, "SESSION_ID", session_id
+    ):
+        order_result = mcp_server.create_order(item_id="shoe_auth_001")
+        payment_result = mcp_server.create_payment("ORD-NOT-FOUND")
+
+    assert order_result["authorized"] is False
+    assert payment_result["authorized"] is False

@@ -61,6 +61,17 @@ class AuthorizationService:
 
         return authorization, "authorized"
 
+    def validate_current_session_authorization(
+        self,
+        session_id: str,
+    ) -> tuple[Optional[AgentAuthorization], str]:
+        authorization = self.get_active(session_id)
+        if not authorization:
+            return None, "missing_authorization"
+        if not authorization.active:
+            return None, "inactive_authorization"
+        return authorization, "authorized"
+
     @staticmethod
     def _hash_token(token: str) -> str:
         return hashlib.sha256(token.encode("utf-8")).hexdigest()

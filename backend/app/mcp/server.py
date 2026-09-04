@@ -43,21 +43,24 @@ def format_razorpay_error(error: Exception) -> str:
 def _token_from_request(
     authorization_token: Optional[str],
     ctx: Optional[Context],
-) -> Optional[str]:
+) -> tuple[Optional[str], bool]:
     if authorization_token:
-        return authorization_token
+        return authorization_token, True
     if ctx is None:
-        return None
+        return None, False
 
     try:
-        headers = ctx.headers or {}
+        headers = ctx.headers
     except ValueError:
-        return None
+        return None, False
+
+    if headers is None:
+        return None, False
 
     bearer = headers.get("authorization") or headers.get("Authorization")
     if bearer and bearer.lower().startswith("bearer "):
-        return bearer[7:].strip() or None
-    return headers.get("x-agent-authorization")
+        return bearer[7:].strip() or None, True
+    return headers.get("x-agent-authorization"), True
 
 
 def _authorize_transaction(
@@ -66,11 +69,22 @@ def _authorize_transaction(
     authorization_token: Optional[str],
     ctx: Optional[Context],
 ) -> tuple[Optional[AgentAuthorization], Optional[dict]]:
-    token = _token_from_request(authorization_token, ctx)
-    authorization, result = AuthorizationService(session).validate(
-        token,
-        SESSION_ID,
+    token, token_transport_available = _token_from_request(
+        authorization_token,
+        ctx,
     )
+    authorization_service = AuthorizationService(session)
+    if token_transport_available:
+        authorization, result = authorization_service.validate(
+            token,
+            SESSION_ID,
+        )
+    else:
+        authorization, result = (
+            authorization_service.validate_current_session_authorization(
+                SESSION_ID
+            )
+        )
     if authorization:
         return authorization, None
 
