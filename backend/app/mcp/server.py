@@ -10,6 +10,7 @@ from app.models.product import Product
 from app.models.agent_authorization import AgentAuthorization
 from app.services.catalog_service import CatalogService
 from app.services.audit_service import AuditService
+from app.services.approval_service import ApprovalService
 from app.services.authorization_service import AuthorizationService
 from app.services.order_service import OrderService
 from app.services.policy_service import PolicyService
@@ -203,6 +204,72 @@ def get_agent_authorization() -> dict:
             "agent_id": authorization.agent_id,
             "session_id": SESSION_ID,
             "status": "authorized",
+        }
+
+
+@server.tool(
+    name="approve_transaction",
+    description=(
+        "Approve an order that is waiting for user approval. Payment is not "
+        "initiated by this tool; call create_payment separately afterward."
+    ),
+)
+def approve_transaction(order_id: str) -> dict:
+    try:
+        with get_session() as session:
+            authorization, authorization_failure = _authorize_transaction(
+                session,
+                "approve_transaction",
+                None,
+                None,
+            )
+            if authorization_failure:
+                return authorization_failure
+
+            order = session.get(Order, order_id)
+            approved_order, result = ApprovalService(session).approve(
+                order,
+                authorization,
+                SESSION_ID,
+            )
+
+            if result == "order_not_found":
+                return {
+                    "success": False,
+                    "approved": False,
+                    "error": "order_not_found",
+                    "message": (
+                        "Transaction could not be approved because the order "
+                        "was not found for this session."
+                    ),
+                }
+            if result == "not_awaiting_approval":
+                return {
+                    "success": False,
+                    "approved": False,
+                    "error": "approval_required",
+                    "message": (
+                        "Transaction could not be approved because the order "
+                        "is not awaiting approval."
+                    ),
+                }
+
+            return {
+                "success": True,
+                "approved": True,
+                "order_id": approved_order.order_id,
+                "status": approved_order.status,
+                "message": (
+                    "Transaction approved. The order is now approved and "
+                    "payment can be initiated."
+                ),
+            }
+    except ValueError as error:
+        return {
+            "success": False,
+            "approved": False,
+            "error": "approval_failed",
+            "message": str(error),
         }
 
 

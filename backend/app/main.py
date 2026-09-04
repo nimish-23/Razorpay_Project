@@ -14,6 +14,7 @@ from app.db import create_db_and_tables, get_session
 from app.models.order import Order
 from app.models.product import Product
 from app.services.audit_service import AuditService
+from app.services.approval_service import ApprovalService
 from app.services.authorization_service import AuthorizationService
 from app.services.catalog_service import CatalogService
 from app.services.order_service import OrderService
@@ -189,61 +190,34 @@ def approve_order(order_id: str):
     with get_session() as session:
         order = session.get(Order, order_id)
         authorization = AuthorizationService(session).get_active(session_id)
-        audit_service = AuditService(session, session_id)
+        approved_order, result = ApprovalService(session).approve(
+            order,
+            authorization,
+            session_id,
+        )
 
-        if not order or order.session_id != session_id:
-            if order:
-                audit_service.log_approval_failed(
-                    order_id=order_id,
-                    agent_id=authorization.agent_id if authorization else None,
-                    amount=order.amount,
-                    reason="Order does not belong to the current session.",
-                )
+        if result == "order_not_found":
             raise HTTPException(
                 status_code=404,
                 detail="Approval failed: order not found for the current session.",
             )
-
-        if order.status != "approval_required":
-            audit_service.log_approval_failed(
-                order_id=order.order_id,
-                agent_id=authorization.agent_id if authorization else None,
-                amount=order.amount,
-                reason="Order is not waiting for user approval.",
-            )
+        if result == "not_awaiting_approval":
             raise HTTPException(
                 status_code=409,
                 detail="Approval failed: order is not waiting for approval.",
             )
-
-        if not authorization:
-            audit_service.log_approval_failed(
-                order_id=order.order_id,
-                agent_id=None,
-                amount=order.amount,
-                reason="No active authorization exists for the current session.",
-            )
+        if result == "not_authorized":
             raise HTTPException(
                 status_code=403,
                 detail="Approval failed: current session is not authorized.",
             )
 
-        order.status = "approved"
-        session.add(order)
-        session.commit()
-        session.refresh(order)
-        audit_service.log_transaction_approved(
-            order_id=order.order_id,
-            agent_id=authorization.agent_id,
-            amount=order.amount,
-        )
-
         return {
-            "order_id": order.order_id,
-            "session_id": order.session_id,
-            "status": order.status,
-            "amount": order.amount,
-            "currency": order.currency,
+            "order_id": approved_order.order_id,
+            "session_id": approved_order.session_id,
+            "status": approved_order.status,
+            "amount": approved_order.amount,
+            "currency": approved_order.currency,
         }
 
 
