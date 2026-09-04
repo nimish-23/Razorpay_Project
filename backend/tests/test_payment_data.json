@@ -1,8 +1,0 @@
-{
-    "order_id": "ORD-F76D20DB7E89",
-    "amount": 4398.0,
-    "currency": "INR",
-    "razorpay_order_id": "order_MOCK_DB7E89",
-    "payment_link_id": "plink_MOCK_DB7E89",
-    "payment_url": "https://rzp.io/i/plink_MOCK_DB7E89"
-}
