@@ -161,6 +161,37 @@ def _audit_policy_decision(
             order_id=order_id,
         )
 
+
+@server.tool(
+    name="get_agent_authorization",
+    description=(
+        "Read the authorization status and agent identity for the current "
+        "MCP session. Does not return or generate an authorization token."
+    ),
+)
+def get_agent_authorization() -> dict:
+    with get_session() as session:
+        authorization = AuthorizationService(session).get_active(SESSION_ID)
+
+        if not authorization:
+            return {
+                "authorized": False,
+                "agent_id": None,
+                "session_id": SESSION_ID,
+                "status": "not_authorized",
+                "message": (
+                    "No active AgentPay authorization exists for this MCP session."
+                ),
+            }
+
+        return {
+            "authorized": True,
+            "agent_id": authorization.agent_id,
+            "session_id": SESSION_ID,
+            "status": "authorized",
+        }
+
+
 @server.tool(
     name="search_catalog",
     description=(
