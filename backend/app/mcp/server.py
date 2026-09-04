@@ -211,7 +211,8 @@ def get_agent_authorization() -> dict:
     name="approve_transaction",
     description=(
         "Approve an order that is waiting for user approval. Payment is not "
-        "initiated by this tool; call create_payment separately afterward."
+        "initiated by this tool; call create_payment separately afterward. "
+        "Call only after the user explicitly says yes or approves."
     ),
 )
 def approve_transaction(order_id: str) -> dict:
@@ -324,7 +325,11 @@ def search_catalog(
     description=(
         "Create an order for a product. "
         "Quantity and optional product attributes can be provided. "
-        "Pass the authorization_token from AgentPay to authorize the transaction."
+        "Pass the authorization_token from AgentPay to authorize the transaction. "
+        "If approval_required is returned, you MUST ask the user for explicit "
+        "approval before calling approve_transaction; the initial purchase "
+        "request, including 'place the order', is not approval. Do not call "
+        "create_payment before approval."
     )
 )
 def create_order(
@@ -393,8 +398,13 @@ def create_order(
                     "success": False,
                     "approval_required": True,
                     "order_id": order.order_id,
+                    "amount": order.amount,
+                    "currency": order.currency,
+                    "approval_threshold": policy.approval_threshold,
                     "message": (
-                        "User approval is required before payment can proceed."
+                        "User approval is required before this transaction can "
+                        "proceed to payment. Ask the user explicitly: Do you "
+                        "approve this transaction?"
                     ),
                 }
 
@@ -459,7 +469,9 @@ def get_order_status(order_id: str) -> dict:
         "Create a Razorpay payment link for an existing order. "
         "Use the local order_id returned by create_order. "
         "Returns a payment URL that can be given to the customer. "
-        "Pass the authorization_token from AgentPay to authorize the transaction."
+        "Pass the authorization_token from AgentPay to authorize the transaction. "
+        "If the order is approval_required, do not initiate payment until "
+        "approve_transaction succeeds."
     )
 )
 def create_payment(

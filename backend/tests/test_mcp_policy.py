@@ -56,10 +56,14 @@ def test_mcp_policy_blocks_and_requires_approval_before_order_creation():
         )
         assert approval["success"] is False
         assert approval["approval_required"] is True
-        assert approval["message"] == (
-            "User approval is required before payment can proceed."
-        )
         assert approval["order_id"]
+        assert approval["amount"] == 3500
+        assert approval["currency"] == "INR"
+        assert approval["approval_threshold"] == 3000
+        assert approval["message"] == (
+            "User approval is required before this transaction can proceed to "
+            "payment. Ask the user explicitly: Do you approve this transaction?"
+        )
 
         blocked = mcp_server.create_order(
             item_id="shoe_policy_blocked",
