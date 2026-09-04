@@ -301,6 +301,15 @@ body {
   letter-spacing: -0.01em;
 }
 
+.audit-section-label {
+  padding: 8px 12px 0;
+  color: var(--text-light);
+  font-family: var(--font-mono);
+  font-size: 0.64rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+}
+
 .badge-count {
   font-size: 0.7rem;
   font-family: var(--font-mono);
@@ -442,12 +451,52 @@ body {
   flex-shrink: 0;
 }
 
+.event-state {
+  margin-left: auto;
+  padding: 1px 6px;
+  border: 1px solid transparent;
+  border-radius: 9999px;
+  font-family: var(--font-mono);
+  font-size: 0.62rem;
+  font-weight: 700;
+  line-height: 1.4;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.state-success {
+  background: var(--success-light);
+  border-color: var(--success-border);
+  color: var(--success);
+}
+
+.state-warning {
+  background: #fff1f2;
+  border-color: #fecdd3;
+  color: #be123c;
+}
+
+.state-pending {
+  background: var(--warning-light);
+  border-color: var(--warning-border);
+  color: var(--warning);
+}
+
 .activity-headline {
   font-size: 0.84rem;
   font-weight: 600;
   color: var(--text-main);
   line-height: 1.35;
   overflow-wrap: anywhere;
+}
+
+.activity-reason {
+  overflow: hidden;
+  color: var(--text-muted);
+  font-size: 0.7rem;
+  line-height: 1.3;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .activity-meta-tags {
@@ -559,6 +608,24 @@ body {
   border-radius: 9999px;
   font-size: 0.72rem;
   font-weight: 600;
+}
+
+.order-state-success {
+  background: var(--success-light);
+  border: 1px solid var(--success-border);
+  color: var(--success);
+}
+
+.order-state-warning {
+  background: #fff1f2;
+  border: 1px solid #fecdd3;
+  color: #be123c;
+}
+
+.order-state-pending {
+  background: var(--warning-light);
+  border: 1px solid var(--warning-border);
+  color: var(--warning);
 }
 
 .order-product-line {

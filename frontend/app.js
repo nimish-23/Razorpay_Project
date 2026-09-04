@@ -154,11 +154,14 @@
 
   function createActivityItem(evt, highlight = false) {
     const item = document.createElement('div');
-    item.className = `activity-item ${highlight ? 'item-fresh' : ''}`;
+    const eventState = getEventState(evt);
+    item.className = `activity-item activity-${eventState} ${highlight ? 'item-fresh' : ''}`;
     item.dataset.eventId = evt.id;
 
     const toolName = evt.tool_name || 'event';
     const timeStr = formatTime(evt.timestamp);
+    const decision = evt.decision || evt.result?.status || 'recorded';
+    const reason = evt.reason || 'Event recorded';
 
     let headline = '';
     let metaHtml = '';
@@ -278,15 +281,34 @@
         <span class="event-pill pill-${escapeHtml(toolName)}">
           ${escapeHtml(toolName)}
         </span>
+        <span class="event-state state-${eventState}">${escapeHtml(decision)}</span>
         <span class="activity-time">${timeStr}</span>
       </div>
       <div class="activity-headline">${headline}</div>
+      <div class="activity-reason" title="${escapeHtml(reason)}">${escapeHtml(reason)}</div>
       <div class="activity-meta-tags">
         ${metaHtml}
       </div>
     `;
 
     return item;
+  }
+
+  function getEventState(evt) {
+    if (['catalog_search', 'order_created', 'payment_finished', 'order_placed'].includes(evt.tool_name)) {
+      return 'success';
+    }
+    if (evt.tool_name === 'payment_initiated') {
+      return 'pending';
+    }
+    const status = String(evt.result?.status || evt.decision || '').toLowerCase();
+    if (['failed', 'failure', 'error', 'cancelled', 'rejected'].some(value => status.includes(value))) {
+      return 'warning';
+    }
+    if (['pending', 'created', 'initiated', 'partially_paid'].some(value => status.includes(value))) {
+      return 'pending';
+    }
+    return 'success';
   }
 
   function renderCurrentOrder(order, history = []) {
@@ -305,14 +327,22 @@
     const isPaymentInitiated = historyTools.has('payment_initiated') || !!order.razorpay_payment_link_id;
     const isPaid = historyTools.has('payment_finished') || order.status === 'paid';
     const isPlaced = historyTools.has('order_placed') || order.status === 'paid';
+    const orderState = ['failed', 'cancelled', 'rejected', 'error'].some(
+      value => String(order.status).toLowerCase().includes(value)
+    ) ? 'warning' : order.status === 'paid' ? 'success' : 'pending';
+    const orderStatusLabel = orderState === 'warning'
+      ? 'Failed'
+      : orderState === 'success'
+        ? (isPlaced ? 'Completed' : 'Paid')
+        : 'Pending Payment';
 
     elements.orderCard.innerHTML = `
       <!-- Order Overview Box -->
       <div class="order-overview-box">
         <div class="order-title-row">
           <div class="order-number">Order #${escapeHtml(order.order_id)}</div>
-          <span class="order-status-badge ${order.status === 'paid' ? 'pill-order_created' : 'pill-payment_initiated'}">
-            ${order.status === 'paid' ? '✓ Paid' : 'Pending Payment'}
+          <span class="order-status-badge order-state-${orderState}">
+            ${orderState === 'success' ? '✓ ' : orderState === 'warning' ? '! ' : '● '}${orderStatusLabel}
           </span>
         </div>
 
