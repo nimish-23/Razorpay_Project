@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AgentPay — AI-Powered Commerce Infrastructure</title>
+  <meta name="description" content="Live AgentPay dashboard showing Claude AI agent execution, payments, and audit lifecycle in real time.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/style.css">
+</head>
+<body>
+  <div class="app-layout">
+    <!-- Top Header -->
+    <header class="app-header">
+      <div class="header-brand">
+        <div class="brand-logo">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"></path>
+            <line x1="3" y1="6" x2="21" y2="6"></line>
+            <path d="M16 10a4 4 0 0 1-8 0"></path>
+          </svg>
+        </div>
+        <div>
+          <h1 class="brand-title">AgentPay</h1>
+          <p class="brand-subtitle">AI-Powered Commerce Infrastructure</p>
+        </div>
+      </div>
+
+      <div class="header-status-group">
+        <div class="system-status-indicator">
+          <span class="status-pulse-dot"></span>
+          <span class="status-text">System Online</span>
+        </div>
+
+        <div class="tech-pills">
+          <span class="tech-pill pill-ai">Claude</span>
+          <span class="tech-pill">MCP</span>
+          <span class="tech-pill">FastAPI</span>
+          <span class="tech-pill">Razorpay</span>
+          <span class="tech-pill pill-audit">Audit Active</span>
+        </div>
+      </div>
+    </header>
+
+    <!-- Architecture / Execution Flow -->
+    <div class="flow-container">
+      <div class="flow-track">
+        <div class="flow-step step-agent">
+          <span class="flow-icon">🤖</span>
+          <span class="flow-label">Claude</span>
+        </div>
+        <div class="flow-connector"></div>
+
+        <div class="flow-step">
+          <span class="flow-icon">⚡</span>
+          <span class="flow-label">MCP Tools</span>
+        </div>
+        <div class="flow-connector"></div>
+
+        <div class="flow-step">
+          <span class="flow-icon">⚙️</span>
+          <span class="flow-label">FastAPI</span>
+        </div>
+        <div class="flow-connector"></div>
+
+        <div class="flow-step">
+          <span class="flow-icon">💳</span>
+          <span class="flow-label">Razorpay</span>
+        </div>
+        <div class="flow-connector"></div>
+
+        <div class="flow-step">
+          <span class="flow-icon">🛡️</span>
+          <span class="flow-label">Audit</span>
+        </div>
+        <div class="flow-connector"></div>
+
+        <div class="flow-step step-live active">
+          <span class="flow-icon">🖥️</span>
+          <span class="flow-label">Live Dashboard</span>
+        </div>
+      </div>
+
+      <div class="flow-sync" id="syncStatus">
+        <span class="sync-ping"></span>
+        <span id="syncText">Live 1.5s</span>
+      </div>
+    </div>
+
+    <!-- Main Content Area -->
+    <div class="main-columns">
+      <!-- Left Column: Live Activity -->
+      <section class="card card-activity">
+        <div class="card-header">
+          <div class="card-title-wrap">
+            <h2 class="card-title">Live Activity</h2>
+            <span class="badge-count" id="eventCountBadge">0 events</span>
+          </div>
+          <button class="btn-refresh" id="refreshBtn" title="Sync now">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <polyline points="23 4 23 10 17 10"></polyline>
+              <polyline points="1 20 1 14 7 14"></polyline>
+              <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path>
+            </svg>
+            Sync
+          </button>
+        </div>
+
+        <div class="activity-scroll-area" id="activityFeed">
+          <div class="feed-empty-state">
+            <div class="spinner-ring"></div>
+            <p class="empty-lead">Waiting for Claude to execute commerce tools</p>
+            <p class="empty-sub">Prompt Claude: <em>"Find black running shoes under ₹5000"</em></p>
+          </div>
+        </div>
+      </section>
+
+      <!-- Right Column: Current Order -->
+      <section class="card card-order">
+        <div class="card-header">
+          <h2 class="card-title">Current Order</h2>
+          <div class="order-select-wrap">
+            <select id="orderSelect" class="order-dropdown">
+              <option value="auto">Auto-track Latest</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="order-card-body" id="orderCard">
+          <div class="order-card-placeholder">
+            <p>No active order selected</p>
+            <span>Ask Claude to purchase a product to start an order.</span>
+          </div>
+        </div>
+      </section>
+    </div>
+
+    <!-- Bottom Section: Order Activity Timeline -->
+    <section class="card card-timeline">
+      <div class="card-header">
+        <div class="card-title-wrap">
+          <h2 class="card-title">Order Activity</h2>
+          <span class="order-tag" id="timelineOrderBadge">ORD-—</span>
+        </div>
+        <span class="timeline-status-info" id="timelineMeta">
+          Complete chronological lifecycle
+        </span>
+      </div>
+
+      <div class="timeline-body" id="timelineContainer">
+        <div class="timeline-empty">
+          <p>Chronological audit events will appear here once an order is created.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- Footer -->
+    <footer class="app-footer">
+      <div>
+        <span>AgentPay Infrastructure</span>
+        <span class="dot-sep">&bull;</span>
+        <span>FastAPI</span>
+        <span class="dot-sep">&bull;</span>
+        <span>Razorpay</span>
+        <span class="dot-sep">&bull;</span>
+        <span>SQLite</span>
+      </div>
+      <div class="footer-endpoint">
+        Endpoint: <code>http://localhost:8000</code>
+      </div>
+    </footer>
+  </div>
+
+  <script src="/app.js"></script>
+</body>
+</html>

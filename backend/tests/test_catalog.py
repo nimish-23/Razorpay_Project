@@ -100,3 +100,26 @@ def test_combined_search():
             assert product.price <= 2500
             assert product.attributes.get("color", "").lower() == "black"
             assert 9 in product.attributes.get("size", [])
+
+
+def test_natural_language_search_matches_name_category_and_attributes():
+    with get_session() as session:
+        service = CatalogService(session, session_id="catalog-test")
+
+        black_running_shoes = service.search_catalog(
+            query="black running shoes"
+        )
+        running_shoes = service.search_catalog(query="running shoes")
+
+        assert [product.id for product in black_running_shoes] == ["shoe_001"]
+        assert [product.id for product in running_shoes] == ["shoe_001"]
+
+        logs = service.audit_service.get_recent_logs(
+            limit=2,
+            session_id="catalog-test",
+        )
+        assert [log.result["count"] for log in reversed(logs)] == [1, 1]
+        assert all(
+            log.result["products"][0]["id"] == "shoe_001"
+            for log in logs
+        )

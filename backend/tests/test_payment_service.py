@@ -1,6 +1,8 @@
 from unittest.mock import patch
+from razorpay.errors import ServerError
 
 from app.db import get_session
+from app.mcp.server import format_razorpay_error
 from app.services.order_service import OrderService
 from app.services.payment_service import PaymentService
 
@@ -58,3 +60,45 @@ def test_payment_service_create_payment():
             # Verify client was called with expected mock
             mock_client.order.create.assert_called_once()
             mock_client.payment_link.create.assert_called_once()
+            payment_payload = mock_client.payment_link.create.call_args.kwargs["data"]
+            assert payment_payload == {
+                "amount": 439800,
+                "currency": "INR",
+                "accept_partial": False,
+                "reference_id": order.order_id,
+                "description": "Payment for Air Runner Black",
+                "notes": {
+                    "local_order_id": order.order_id,
+                    "razorpay_order_id": mock_order_id,
+                },
+            }
+
+
+def test_payment_service_preserves_razorpay_failure():
+    with patch("app.services.payment_service.client") as mock_client:
+        mock_client.order.create.return_value = {"id": "order_mock_limit"}
+        mock_client.payment_link.create.side_effect = ServerError(
+            "test mode limit of 30 reached for payment_link"
+        )
+
+        with get_session() as session:
+            order_service = OrderService(session)
+            order = order_service.create_order(
+                item_id="shoe_001",
+                qty=1,
+                selected_attributes={"size": 9},
+            )
+
+            try:
+                PaymentService(session).create_payment(
+                    order=order,
+                    product_name="Air Runner Black",
+                )
+                assert False
+            except ServerError as error:
+                assert str(error) == (
+                    "test mode limit of 30 reached for payment_link"
+                )
+                assert format_razorpay_error(error) == (
+                    "Razorpay error: test mode limit of 30 reached for payment_link"
+                )

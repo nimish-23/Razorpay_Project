@@ -77,6 +77,11 @@ class WebhookService:
                 ),
             }
 
+        self.audit_service = AuditService(
+            self.session,
+            order.session_id,
+        )
+
         status_map = {
             "payment_link.paid": "paid",
             "payment_link.partially_paid": "partially_paid",

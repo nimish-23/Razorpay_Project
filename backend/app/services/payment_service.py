@@ -9,12 +9,12 @@ from app.services.audit_service import AuditService
 
 class PaymentService:
 
-    def __init__(self, session: Session):
+    def __init__(self, session: Session, session_id: str = ""):
         self.session = session
-        self.audit_service = AuditService(
-            session,
-            session_id=""
-        )
+        self.session_id = session_id
+
+    def _audit_service_for(self, order: Order) -> AuditService:
+        return AuditService(self.session, order.session_id or self.session_id)
 
     def create_payment(
         self,
@@ -85,7 +85,7 @@ class PaymentService:
         self.session.commit()
         self.session.refresh(order)
 
-        self.audit_service.log_payment_initiated(
+        self._audit_service_for(order).log_payment_initiated(
             order_id=order.order_id,
             razorpay_order_id=razorpay_order_id,
             payment_link_id=payment_link["id"],
@@ -150,7 +150,8 @@ class PaymentService:
                 self.session.commit()
                 self.session.refresh(order)
 
-        self.audit_service.log_payment_status_changed(
+        audit_service = self._audit_service_for(order)
+        audit_service.log_payment_status_changed(
             order_id=order.order_id,
             status=order.status,
             razorpay_status=razorpay_status,
@@ -159,12 +160,12 @@ class PaymentService:
         )
 
         if local_status == "paid" and old_status != "paid":
-            self.audit_service.log_payment_finished(
+            audit_service.log_payment_finished(
                 order_id=order.order_id,
                 payment_id=payment_id,
                 amount_paid=amount_paid_paise / 100,
             )
-            self.audit_service.log_order_placed(
+            audit_service.log_order_placed(
                 order_id=order.order_id,
                 status=order.status,
             )

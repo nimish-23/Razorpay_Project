@@ -128,6 +128,11 @@ class OrderService:
                 f"Order '{order_id}' was not found."
             )
 
+        if self.session_id and order.session_id != self.session_id:
+            raise ValueError(
+                f"Order '{order_id}' was not found."
+            )
+
         payment_service = PaymentService(self.session)
 
         return payment_service.get_payment_status(order)

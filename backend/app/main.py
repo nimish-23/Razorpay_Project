@@ -33,6 +33,15 @@ app = FastAPI(
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 FRONTEND_DIR = BASE_DIR.parent / "frontend"
+ACTIVE_SESSION_PATH = BASE_DIR / "active_session.txt"
+
+
+def get_active_session_id() -> str | None:
+    try:
+        session_id = ACTIVE_SESSION_PATH.read_text(encoding="utf-8").strip()
+    except FileNotFoundError:
+        return None
+    return session_id or None
 
 
 @app.on_event("startup")
@@ -48,6 +57,11 @@ def startup():
         service.seed_catalog(str(catalog_path))
 
 
+@app.get("/session/active")
+def get_active_session():
+    return {"session_id": get_active_session_id()}
+
+
 @app.get("/health")
 def health_check():
     return {
@@ -57,11 +71,13 @@ def health_check():
 
 
 @app.get("/orders/latest")
-def get_latest_order():
+def get_latest_order(session_id: str | None = None):
+    session_id = session_id or get_active_session_id()
     with get_session() as session:
-        order = session.exec(
-            select(Order).order_by(Order.created_at.desc())
-        ).first()
+        statement = select(Order).order_by(Order.created_at.desc())
+        if session_id:
+            statement = statement.where(Order.session_id == session_id)
+        order = session.exec(statement).first()
 
         if not order:
             return None
@@ -86,11 +102,13 @@ def get_latest_order():
 
 
 @app.get("/orders")
-def list_orders(limit: int = 20):
+def list_orders(limit: int = 20, session_id: str | None = None):
+    session_id = session_id or get_active_session_id()
     with get_session() as session:
-        orders = session.exec(
-            select(Order).order_by(Order.created_at.desc()).limit(limit)
-        ).all()
+        statement = select(Order).order_by(Order.created_at.desc()).limit(limit)
+        if session_id:
+            statement = statement.where(Order.session_id == session_id)
+        orders = session.exec(statement).all()
 
         results = []
         for order in orders:
@@ -130,11 +148,18 @@ def get_order_status(order_id: str):
 @app.get("/orders/{order_id}/history")
 def get_order_history(order_id: str):
     with get_session() as session:
-        audit_service = AuditService(session)
+        order = session.get(Order, order_id)
+        active_session_id = get_active_session_id()
+        if not order or (
+            active_session_id and order.session_id != active_session_id
+        ):
+            raise HTTPException(status_code=404, detail="Order not found")
+        audit_service = AuditService(session, order.session_id)
         history = audit_service.get_order_history(order_id)
         return [
             {
                 "id": log.id,
+                "session_id": log.session_id,
                 "order_id": log.order_id,
                 "tool_name": log.tool_name,
                 "decision": log.decision,
@@ -153,22 +178,19 @@ def get_recent_audit(
     limit: int = 50,
     session_id: str | None = None
 ):
+    session_id = session_id or get_active_session_id()
     with get_session() as session:
         audit_service = AuditService(session)
 
-        if session_id:
-            logs = audit_service.get_recent_logs(
-                limit=limit,
-                session_id=session_id
-            )
-        else:
-            logs = audit_service.get_recent_logs(
-                limit=limit
-            )
+        logs = audit_service.get_recent_logs(
+            limit=limit,
+            session_id=session_id,
+        )
 
         return [
             {
                 "id": log.id,
+                "session_id": log.session_id,
                 "order_id": log.order_id,
                 "tool_name": log.tool_name,
                 "decision": log.decision,

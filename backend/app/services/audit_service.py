@@ -50,7 +50,14 @@ class AuditService:
         category: Optional[str] = None,
         attributes: Optional[dict[str, Any]] = None,
         product_ids: Optional[list[str]] = None,
+        products: Optional[list[dict[str, Any]]] = None,
     ) -> AuditLog:
+        returned_products = products or []
+        returned_product_ids = product_ids or [
+            product["id"]
+            for product in returned_products
+            if "id" in product
+        ]
         return self.log_event(
             tool_name="catalog_search",
             decision="success",
@@ -62,8 +69,9 @@ class AuditService:
                 "attributes": attributes or {},
             },
             result_data={
-                "count": len(product_ids) if product_ids else 0,
-                "product_ids": product_ids or [],
+                "count": len(returned_products) if products is not None else len(returned_product_ids),
+                "products": returned_products,
+                "product_ids": returned_product_ids,
             },
             order_id=None,
         )
@@ -193,17 +201,26 @@ class AuditService:
             .where(AuditLog.order_id == order_id)
             .order_by(AuditLog.timestamp.asc(), AuditLog.id.asc())
         )
+        if self.session_id:
+            statement = statement.where(AuditLog.session_id == self.session_id)
         return list(self.session.exec(statement).all())
 
     def get_by_event_id(self, event_id: str) -> Optional[AuditLog]:
         statement = select(AuditLog).where(AuditLog.event_id == event_id)
         return self.session.exec(statement).first()
 
-    def get_recent_logs(self, limit: int = 50) -> list[AuditLog]:
+    def get_recent_logs(
+        self,
+        limit: int = 50,
+        session_id: Optional[str] = None,
+    ) -> list[AuditLog]:
         statement = (
             select(AuditLog)
             .order_by(AuditLog.timestamp.desc(), AuditLog.id.desc())
             .limit(limit)
         )
+        effective_session_id = session_id if session_id is not None else self.session_id
+        if effective_session_id:
+            statement = statement.where(AuditLog.session_id == effective_session_id)
         return list(self.session.exec(statement).all())
 

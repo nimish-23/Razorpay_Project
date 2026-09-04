@@ -52,6 +52,8 @@ def test_order_lifecycle_audit_trail_and_chronology():
         )
         assert catalog_log.tool_name == "catalog_search"
         assert catalog_log.order_id is None
+        assert catalog_log.result["count"] == 1
+        assert catalog_log.result["product_ids"] == ["shoe_001"]
 
         # 2. Order created
         order = Order(
@@ -151,6 +153,16 @@ def test_order_service_and_catalog_service_audit_integration():
         assert order.order_id is not None
 
         audit_service = AuditService(session)
+        search_log = next(
+            log for log in audit_service.get_recent_logs(limit=10)
+            if log.tool_name == "catalog_search"
+        )
+        assert search_log.tool_name == "catalog_search"
+        assert search_log.result["count"] == len(search_results)
+        assert [
+            product["id"] for product in search_log.result["products"]
+        ] == [product.id for product in search_results]
+
         history = audit_service.get_order_history(order.order_id)
         assert len(history) >= 1
         assert history[0].tool_name == "order_created"

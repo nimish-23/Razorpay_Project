@@ -1,6 +1,8 @@
 from typing import Optional, Any
+from pathlib import Path
 
 from mcp.server.mcpserver import MCPServer
+from razorpay.errors import BadRequestError, GatewayError, ServerError
 from uuid import uuid4
 from app.db import get_session
 from app.models.order import Order
@@ -16,6 +18,22 @@ server = MCPServer(
 )
 
 SESSION_ID = f"sess_{uuid4().hex[:12].upper()}"
+ACTIVE_SESSION_PATH = Path(__file__).resolve().parents[2] / "active_session.txt"
+
+
+def write_active_session():
+    ACTIVE_SESSION_PATH.write_text(SESSION_ID, encoding="utf-8")
+
+
+def format_razorpay_error(error: Exception) -> str:
+    details = [
+        str(error),
+        getattr(error, "code", None),
+        getattr(error, "description", None),
+    ]
+    return "Razorpay error: " + "; ".join(
+        detail for detail in details if detail
+    )
 
 @server.tool(
     name="search_catalog",
@@ -122,7 +140,7 @@ def create_order(
 def get_order_status(order_id: str) -> dict:
     try:
         with get_session() as session:
-            order_service = OrderService(session)
+            order_service = OrderService(session, SESSION_ID)
 
             result = order_service.sync_payment_status(
                 order_id=order_id
@@ -153,10 +171,10 @@ def create_payment(order_id: str) -> dict:
     try:
         with get_session() as session:
 
-            order = session.get(
-                Order,
-                order_id
-            )
+            order = session.get(Order, order_id)
+
+            if order is not None and order.session_id != SESSION_ID:
+                order = None
 
             if order is None:
                 return {
@@ -178,7 +196,7 @@ def create_payment(order_id: str) -> dict:
                     ),
                 }
 
-            payment_service = PaymentService(session)
+            payment_service = PaymentService(session, SESSION_ID)
 
             result = payment_service.create_payment(
                 order=order,
@@ -195,6 +213,12 @@ def create_payment(order_id: str) -> dict:
             "success": False,
             "error": str(e),
         }
+    except (BadRequestError, GatewayError, ServerError) as e:
+        return {
+            "success": False,
+            "error": format_razorpay_error(e),
+        }
 
 if __name__ == "__main__":
+    write_active_session()
     server.run("stdio")

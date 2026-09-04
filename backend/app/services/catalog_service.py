@@ -1,5 +1,6 @@
 from typing import Optional, Any
 import json
+import re
 from pathlib import Path
 
 from sqlmodel import Session, select
@@ -84,15 +85,10 @@ class CatalogService:
 
         for product in products:
 
-            # Text search
-            if query:
-                query_lower = query.lower()
-
-                if (
-                    query_lower not in product.name.lower()
-                    and query_lower not in product.category.lower()
-                ):
-                    continue
+            # Match every meaningful query token against the product's
+            # searchable text, including attribute values.
+            if query and not self._matches_query(product, query):
+                continue
 
             # Price filter
             if max_price is not None:
@@ -114,15 +110,56 @@ class CatalogService:
 
             results.append(product)
 
+        returned_products = [
+            {
+                "id": product.id,
+                "name": product.name,
+                "category": product.category,
+                "price": product.price,
+                "currency": product.currency,
+                "stock": product.stock,
+                "attributes": product.attributes,
+            }
+            for product in results
+        ]
+
         self.audit_service.log_catalog_search(
             query=query,
             max_price=max_price,
             category=category,
             attributes=attributes,
-            product_ids=[p.id for p in results],
+            products=returned_products,
         )
 
         return results
+
+    def _matches_query(self, product: Product, query: str) -> bool:
+        query_tokens = self._normalized_tokens(query)
+        searchable_values = [product.name, product.category]
+
+        for value in (product.attributes or {}).values():
+            if isinstance(value, list):
+                searchable_values.extend(str(item) for item in value)
+            else:
+                searchable_values.append(str(value))
+
+        searchable_tokens = {
+            token
+            for value in searchable_values
+            for token in self._normalized_tokens(value)
+        }
+        return all(token in searchable_tokens for token in query_tokens)
+
+    @staticmethod
+    def _normalized_tokens(value: str) -> set[str]:
+        tokens = re.findall(r"[a-z0-9]+", value.lower())
+        equivalents = {
+            "running": "run",
+            "runner": "run",
+            "shoe": "shoe",
+            "shoes": "shoe",
+        }
+        return {equivalents.get(token, token) for token in tokens}
 
     def _matches_attributes(
         self,
