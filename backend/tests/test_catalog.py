@@ -5,16 +5,11 @@ from app.models.product import Product
 from app.services.catalog_service import CatalogService
 
 
-def main():
-
+def test_get_all_products():
     with get_session() as session:
+        products = session.exec(select(Product)).all()
 
-        service = CatalogService(session)
-
-        # Test 1: Get all products
-        products = session.exec(
-            select(Product)
-        ).all()
+        assert products is not None
 
         print("\n=== ALL PRODUCTS ===")
 
@@ -28,12 +23,16 @@ def main():
 
         print(f"\nTotal products: {len(products)}")
 
-        # Test 2: Search shoes
-        print("\n=== SHOES ===")
+
+def test_search_shoes():
+    with get_session() as session:
+        service = CatalogService(session)
 
         results = service.search_catalog(
             category="shoes"
         )
+
+        print("\n=== SHOES ===")
 
         for product in results:
             print(
@@ -43,12 +42,21 @@ def main():
 
         print(f"Found: {len(results)}")
 
-        # Test 3: Black products
-        print("\n=== BLACK PRODUCTS ===")
+        for product in results:
+            assert product.category.lower() == "shoes"
+
+
+def test_search_black_products():
+    with get_session() as session:
+        service = CatalogService(session)
 
         results = service.search_catalog(
-            color="black"
+            attributes={
+                "color": "black"
+            }
         )
+
+        print("\n=== BLACK PRODUCTS ===")
 
         for product in results:
             print(
@@ -59,25 +67,36 @@ def main():
 
         print(f"Found: {len(results)}")
 
-        # Test 4: Combined search
-        print("\n=== BLACK SHOES UNDER ₹2500, SIZE 9 ===")
+        for product in results:
+            assert product.attributes.get("color", "").lower() == "black"
+
+
+def test_combined_search():
+    with get_session() as session:
+        service = CatalogService(session)
 
         results = service.search_catalog(
             category="shoes",
-            color="black",
             max_price=2500,
-            size=9
+            attributes={
+                "color": "black",
+                "size": 9
+            }
         )
+
+        print("\n=== BLACK SHOES UNDER ₹2500, SIZE 9 ===")
 
         for product in results:
             print(
                 f"{product.name} | "
                 f"₹{product.price} | "
-                f"Sizes: {product.attributes.get('sizes_available', [])}"
+                f"Attributes: {product.attributes}"
             )
 
         print(f"Found: {len(results)}")
 
-
-if __name__ == "__main__":
-    main()
+        for product in results:
+            assert product.category.lower() == "shoes"
+            assert product.price <= 2500
+            assert product.attributes.get("color", "").lower() == "black"
+            assert 9 in product.attributes.get("size", [])

@@ -8,7 +8,7 @@
     "stock": 12,
     "attributes": {
       "color": "black",
-      "sizes_available": [7, 8, 9, 10]
+      "size": [7, 8, 9, 10]
     }
   },
   {
@@ -20,7 +20,7 @@
     "stock": 8,
     "attributes": {
       "color": "white",
-      "sizes_available": [6, 7, 8, 9]
+      "size": [6, 7, 8, 9]
     }
   },
   {
@@ -32,7 +32,7 @@
     "stock": 15,
     "attributes": {
       "color": "blue",
-      "sizes_available": [7, 8, 9, 10, 11]
+      "size": [7, 8, 9, 10, 11]
     }
   },
   {
@@ -44,7 +44,7 @@
     "stock": 6,
     "attributes": {
       "color": "grey",
-      "sizes_available": [6, 7, 8, 9, 10]
+      "size": [6, 7, 8, 9, 10]
     }
   },
   {
@@ -56,10 +56,9 @@
     "stock": 10,
     "attributes": {
       "color": "green",
-      "sizes_available": [8, 9, 10, 11]
+      "size": [8, 9, 10, 11]
     }
   },
-
   {
     "id": "earbud_001",
     "name": "SoundBeat Pro",
@@ -125,7 +124,6 @@
       "noise_cancellation": false
     }
   },
-
   {
     "id": "bag_001",
     "name": "UrbanPack 20L",
@@ -191,7 +189,6 @@
       "laptop_size": 14
     }
   },
-
   {
     "id": "watch_001",
     "name": "PulseFit X1",

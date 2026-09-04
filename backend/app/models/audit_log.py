@@ -13,6 +13,19 @@ class AuditLog(SQLModel, table=True):
         primary_key=True
     )
 
+    session_id: str = Field(default="", index=True)
+
+    order_id: str | None = Field(
+        default=None,
+        index=True
+    )
+
+    event_id: str | None = Field(
+        default=None,
+        index=True,
+        unique=True
+    )
+
     timestamp: datetime = Field(
         default_factory=datetime.utcnow,
         index=True
