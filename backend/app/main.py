@@ -7,6 +7,7 @@ from dotenv import load_dotenv
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
+from pydantic import BaseModel, Field
 from sqlmodel import select
 
 from app.db import create_db_and_tables, get_session
@@ -16,6 +17,7 @@ from app.services.audit_service import AuditService
 from app.services.authorization_service import AuthorizationService
 from app.services.catalog_service import CatalogService
 from app.services.order_service import OrderService
+from app.services.policy_service import PolicyService
 from app.services.webhook_service import WebhookService
 
 load_dotenv()
@@ -35,6 +37,12 @@ app = FastAPI(
 BASE_DIR = Path(__file__).resolve().parent.parent
 FRONTEND_DIR = BASE_DIR.parent / "frontend"
 ACTIVE_SESSION_PATH = BASE_DIR / "active_session.txt"
+
+
+class PolicyRequest(BaseModel):
+    maximum_transaction_amount: float = Field(gt=0)
+    approval_threshold: float = Field(gt=0)
+    payment_verification_required: bool
 
 
 def get_active_session_id() -> str | None:
@@ -109,6 +117,64 @@ def get_active_authorization():
             "status": "authorized",
             "session_id": authorization.session_id,
         }
+
+
+def policy_response(policy):
+    return {
+        "session_id": policy.session_id,
+        "agent_id": policy.agent_id,
+        "maximum_transaction_amount": policy.maximum_transaction_amount,
+        "approval_threshold": policy.approval_threshold,
+        "payment_verification_required": policy.payment_verification_required,
+    }
+
+
+@app.get("/policy/active")
+def get_active_policy():
+    session_id = get_active_session_id()
+    if not session_id:
+        raise HTTPException(
+            status_code=404,
+            detail="Not authorized: no active MCP session.",
+        )
+
+    with get_session() as session:
+        authorization = AuthorizationService(session).get_active(session_id)
+        if not authorization:
+            raise HTTPException(
+                status_code=404,
+                detail="Not authorized for the current session.",
+            )
+        policy = PolicyService(session).get_or_create(authorization)
+        return policy_response(policy)
+
+
+@app.post("/policy")
+def update_policy(policy_request: PolicyRequest):
+    session_id = get_active_session_id()
+    if not session_id:
+        raise HTTPException(
+            status_code=404,
+            detail="Not authorized: no active MCP session.",
+        )
+
+    with get_session() as session:
+        authorization = AuthorizationService(session).get_active(session_id)
+        if not authorization:
+            raise HTTPException(
+                status_code=404,
+                detail="Not authorized for the current session.",
+            )
+        try:
+            policy = PolicyService(session).update(
+                authorization=authorization,
+                maximum_transaction_amount=policy_request.maximum_transaction_amount,
+                approval_threshold=policy_request.approval_threshold,
+                payment_verification_required=policy_request.payment_verification_required,
+            )
+        except ValueError as error:
+            raise HTTPException(status_code=422, detail=str(error))
+        return policy_response(policy)
 
 
 @app.get("/health")

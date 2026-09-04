@@ -32,6 +32,11 @@
     authorizationToken: document.getElementById('authorizationToken'),
     authorizationStatus: document.getElementById('authorizationStatus'),
     generateAuthorizationBtn: document.getElementById('generateAuthorizationBtn'),
+    policyMaximum: document.getElementById('policyMaximum'),
+    policyApproval: document.getElementById('policyApproval'),
+    policyVerification: document.getElementById('policyVerification'),
+    policyMessage: document.getElementById('policyMessage'),
+    savePolicyBtn: document.getElementById('savePolicyBtn'),
   };
 
   const API_BASE = window.location.origin;
@@ -128,6 +133,45 @@
     return await res.json();
   }
 
+  async function fetchActivePolicy() {
+    const res = await fetch(`${API_BASE}/policy/active`);
+    if (res.status === 404) return null;
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    return await res.json();
+  }
+
+  function renderPolicy(policy) {
+    if (!policy) return;
+    elements.policyMaximum.value = policy.maximum_transaction_amount;
+    elements.policyApproval.value = policy.approval_threshold;
+    elements.policyVerification.checked = policy.payment_verification_required;
+  }
+
+  async function savePolicy() {
+    elements.savePolicyBtn.disabled = true;
+    elements.policyMessage.textContent = '';
+    try {
+      const res = await fetch(`${API_BASE}/policy`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          maximum_transaction_amount: Number(elements.policyMaximum.value),
+          approval_threshold: Number(elements.policyApproval.value),
+          payment_verification_required: elements.policyVerification.checked,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.detail || `HTTP ${res.status}`);
+      renderPolicy(data);
+      elements.policyMessage.textContent = 'Policy saved';
+    } catch (error) {
+      elements.policyMessage.textContent = 'Unable to save policy';
+      console.error('Policy update failed:', error);
+    } finally {
+      elements.savePolicyBtn.disabled = false;
+    }
+  }
+
   function renderAuthorization(authorization) {
     if (!authorization) return;
     elements.authorizationAgentId.textContent = authorization.agent_id;
@@ -149,6 +193,9 @@
       elements.authorizationStatus.textContent = 'Authorized';
       elements.authorizationStatus.classList.add('authorization-status-authorized');
       elements.generateAuthorizationBtn.textContent = 'Authorized';
+      fetchActivePolicy()
+        .then(renderPolicy)
+        .catch(error => console.error('Policy lookup failed:', error));
     } catch (error) {
       console.error('Authorization generation failed:', error);
       elements.generateAuthorizationBtn.disabled = false;
@@ -739,10 +786,15 @@
   });
 
   elements.generateAuthorizationBtn.addEventListener('click', generateAuthorization);
+  elements.savePolicyBtn.addEventListener('click', savePolicy);
 
   fetchActiveAuthorization()
     .then(renderAuthorization)
     .catch(error => console.error('Authorization lookup failed:', error));
+
+  fetchActivePolicy()
+    .then(renderPolicy)
+    .catch(error => console.error('Policy lookup failed:', error));
 
   // Initial trigger & recurring 1.5s poll
   pollCycle();

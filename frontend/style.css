@@ -406,6 +406,89 @@ body {
   opacity: 0.7;
 }
 
+.policy-section {
+  padding: 0 18px 14px;
+  border-top: 1px solid var(--border-subtle);
+}
+
+.policy-section-title {
+  padding: 10px 0 8px;
+  color: var(--text-body);
+  font-size: 0.72rem;
+  font-weight: 700;
+}
+
+.policy-fields {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.policy-field {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  min-width: 0;
+  color: var(--text-muted);
+  font-size: 0.7rem;
+  font-weight: 600;
+}
+
+.policy-input-wrap {
+  display: inline-flex;
+  align-items: center;
+  flex: 0 1 108px;
+  gap: 3px;
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+}
+
+.policy-input-wrap input {
+  width: 100%;
+  min-width: 0;
+  padding: 5px 6px;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  color: var(--text-main);
+  font: 600 0.7rem var(--font-mono);
+}
+
+.policy-toggle-field {
+  justify-content: flex-start;
+}
+
+.policy-toggle-field input {
+  accent-color: var(--success);
+  margin-left: auto;
+}
+
+.policy-toggle-label {
+  color: var(--success);
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+}
+
+.policy-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+  min-height: 28px;
+  margin-top: 8px;
+}
+
+.policy-message {
+  margin-right: auto;
+  color: var(--success);
+  font-size: 0.68rem;
+}
+
+.policy-actions button:disabled {
+  cursor: default;
+  opacity: 0.7;
+}
+
 /* ==========================================================================
    Left Column: Live Activity Feed
    ========================================================================== */
@@ -1123,6 +1206,15 @@ body {
 
   .authorization-details {
     padding: 10px 14px;
+    gap: 8px;
+  }
+
+  .policy-section {
+    padding: 0 14px 12px;
+  }
+
+  .policy-fields {
+    grid-template-columns: 1fr;
     gap: 8px;
   }
 

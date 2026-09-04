@@ -7,10 +7,12 @@ from uuid import uuid4
 from app.db import get_session
 from app.models.order import Order
 from app.models.product import Product
+from app.models.agent_authorization import AgentAuthorization
 from app.services.catalog_service import CatalogService
 from app.services.audit_service import AuditService
 from app.services.authorization_service import AuthorizationService
 from app.services.order_service import OrderService
+from app.services.policy_service import PolicyService
 from app.services.payment_service import PaymentService
 
 
@@ -63,14 +65,14 @@ def _authorize_transaction(
     tool_name: str,
     authorization_token: Optional[str],
     ctx: Optional[Context],
-) -> Optional[dict]:
+) -> tuple[Optional[AgentAuthorization], Optional[dict]]:
     token = _token_from_request(authorization_token, ctx)
     authorization, result = AuthorizationService(session).validate(
         token,
         SESSION_ID,
     )
     if authorization:
-        return None
+        return authorization, None
 
     agent_id = authorization.agent_id if authorization else None
     AuditService(session, SESSION_ID).log_event(
@@ -87,7 +89,7 @@ def _authorize_transaction(
             "failure_reason": result,
         },
     )
-    return {
+    return authorization, {
         "authorized": False,
         "error": "agent_not_authorized",
         "message": (
@@ -95,6 +97,66 @@ def _authorize_transaction(
         ),
         "reason": result,
     }
+
+
+def _evaluate_transaction_policy(
+    session,
+    authorization: AgentAuthorization,
+    amount: float,
+) -> Optional[dict]:
+    policy = PolicyService(session).get_or_create(authorization)
+    decision = PolicyService(session).evaluate(policy, amount)
+    audit_service = AuditService(session, SESSION_ID)
+    audit_data = {
+        "agent_id": authorization.agent_id,
+        "session_id": SESSION_ID,
+        "transaction_amount": amount,
+        "maximum_transaction_amount": policy.maximum_transaction_amount,
+        "approval_threshold": policy.approval_threshold,
+        "decision": decision,
+    }
+
+    if not decision["allowed"]:
+        audit_service.log_event(
+            tool_name="policy_check_failed",
+            decision="blocked",
+            reason=str(decision["reason"]),
+            input_data=audit_data,
+            result_data=decision,
+        )
+        return {
+            "allowed": False,
+            "error": "policy_violation",
+            "message": "Transaction blocked by AgentPay policy.",
+            "reason": decision["reason"],
+        }
+
+    if decision["approval_required"]:
+        audit_service.log_event(
+            tool_name="policy_approval_required",
+            decision="approval_required",
+            reason=str(decision["reason"]),
+            input_data=audit_data,
+            result_data=decision,
+        )
+        return {
+            "allowed": True,
+            "approval_required": True,
+            "error": "approval_required",
+            "message": (
+                "User approval is required before this transaction can proceed."
+            ),
+            "reason": decision["reason"],
+        }
+
+    audit_service.log_event(
+        tool_name="policy_check_passed",
+        decision="allowed",
+        reason=str(decision["reason"]),
+        input_data=audit_data,
+        result_data=decision,
+    )
+    return None
 
 @server.tool(
     name="search_catalog",
@@ -162,7 +224,7 @@ def create_order(
 
         with get_session() as session:
 
-            authorization_failure = _authorize_transaction(
+            authorization, authorization_failure = _authorize_transaction(
                 session,
                 "create_order",
                 authorization_token,
@@ -170,6 +232,16 @@ def create_order(
             )
             if authorization_failure:
                 return authorization_failure
+
+            product = session.get(Product, item_id)
+            if product is not None and qty > 0:
+                policy_failure = _evaluate_transaction_policy(
+                    session,
+                    authorization,
+                    product.price * qty,
+                )
+                if policy_failure:
+                    return policy_failure
 
             order_service = OrderService(
             session,
@@ -249,7 +321,7 @@ def create_payment(
     try:
         with get_session() as session:
 
-            authorization_failure = _authorize_transaction(
+            authorization, authorization_failure = _authorize_transaction(
                 session,
                 "create_payment",
                 authorization_token,
@@ -268,6 +340,14 @@ def create_payment(
                     "success": False,
                     "error": f"Order '{order_id}' was not found.",
                 }
+
+            policy_failure = _evaluate_transaction_policy(
+                session,
+                authorization,
+                order.amount,
+            )
+            if policy_failure:
+                return policy_failure
 
             product = session.get(
                 Product,

@@ -164,6 +164,29 @@
           <span class="authorization-status" id="authorizationStatus">Not Authorized</span>
         </div>
       </div>
+
+      <div class="policy-section">
+        <div class="policy-section-title">Shopping Policy</div>
+        <div class="policy-fields">
+          <label class="policy-field">
+            <span>Maximum transaction</span>
+            <span class="policy-input-wrap"><span>₹</span><input id="policyMaximum" type="number" min="0.01" step="0.01" value="5000"></span>
+          </label>
+          <label class="policy-field">
+            <span>Approval required above</span>
+            <span class="policy-input-wrap"><span>₹</span><input id="policyApproval" type="number" min="0.01" step="0.01" value="3000"></span>
+          </label>
+          <label class="policy-field policy-toggle-field">
+            <span>Payment verification</span>
+            <input id="policyVerification" type="checkbox" checked>
+            <span class="policy-toggle-label">ON</span>
+          </label>
+        </div>
+        <div class="policy-actions">
+          <span class="policy-message" id="policyMessage" role="status"></span>
+          <button class="btn-refresh" id="savePolicyBtn" type="button">Save Policy</button>
+        </div>
+      </div>
     </section>
 
     <!-- Bottom Section: Order Activity Timeline -->
