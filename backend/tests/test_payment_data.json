@@ -1,8 +1,8 @@
 {
-    "order_id": "ORD-A0CC5301A3ED",
+    "order_id": "ORD-27F1562F0017",
     "amount": 4398.0,
     "currency": "INR",
-    "razorpay_order_id": "order_MOCK_01A3ED",
-    "payment_link_id": "plink_MOCK_01A3ED",
-    "payment_url": "https://rzp.io/i/plink_MOCK_01A3ED"
+    "razorpay_order_id": "order_MOCK_2F0017",
+    "payment_link_id": "plink_MOCK_2F0017",
+    "payment_url": "https://rzp.io/i/plink_MOCK_2F0017"
 }

@@ -64,6 +64,7 @@ class PolicyService:
         self,
         policy: AgentPolicy,
         amount: float,
+        approval_granted: bool = False,
     ) -> dict[str, object]:
         if amount > policy.maximum_transaction_amount:
             return {
@@ -75,6 +76,12 @@ class PolicyService:
             }
 
         if amount > policy.approval_threshold:
+            if approval_granted:
+                return {
+                    "allowed": True,
+                    "approval_required": False,
+                    "reason": "Transaction was approved by the user.",
+                }
             return {
                 "allowed": True,
                 "approval_required": True,

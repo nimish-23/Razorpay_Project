@@ -54,13 +54,12 @@ def test_mcp_policy_blocks_and_requires_approval_before_order_creation():
             item_id="shoe_policy_approval",
             authorization_token=token,
         )
-        assert approval == {
-            "allowed": True,
-            "approval_required": True,
-            "error": "approval_required",
-            "message": "User approval is required before this transaction can proceed.",
-            "reason": "Transaction is within the maximum limit but requires user approval.",
-        }
+        assert approval["success"] is False
+        assert approval["approval_required"] is True
+        assert approval["message"] == (
+            "User approval is required before payment can proceed."
+        )
+        assert approval["order_id"]
 
         blocked = mcp_server.create_order(
             item_id="shoe_policy_blocked",
@@ -70,7 +69,9 @@ def test_mcp_policy_blocks_and_requires_approval_before_order_creation():
         assert blocked["error"] == "policy_violation"
 
     with Session(engine) as session:
-        assert session.exec(select(Order)).first() is None
+        orders = session.exec(select(Order)).all()
+        assert len(orders) == 1
+        assert orders[0].status == "approval_required"
         events = session.exec(
             select(AuditLog).where(
                 AuditLog.tool_name.in_([
@@ -100,6 +101,14 @@ def test_mcp_policy_blocks_payment_before_razorpay():
             amount=7000,
             currency="INR",
             status="pending_payment",
+        ))
+        session.add(Product(
+            id="missing-product",
+            name="Policy Blocked Product",
+            category="shoes",
+            price=7000,
+            stock=1,
+            attributes={},
         ))
         session.commit()
 

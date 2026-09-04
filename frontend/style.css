@@ -775,6 +775,55 @@ body {
   color: var(--warning);
 }
 
+.approval-panel {
+  padding: 12px 14px;
+  background: var(--warning-light);
+  border: 1px solid var(--warning-border);
+  border-radius: var(--radius-md);
+}
+
+.approval-title {
+  color: var(--text-main);
+  font-size: 0.82rem;
+  font-weight: 700;
+}
+
+.approval-panel p {
+  margin-top: 3px;
+  color: var(--text-body);
+  font-size: 0.72rem;
+}
+
+.approval-summary {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 16px;
+  margin-top: 8px;
+  color: var(--text-muted);
+  font-size: 0.72rem;
+}
+
+.approval-summary strong {
+  color: var(--text-main);
+  font-family: var(--font-mono);
+}
+
+.approval-button {
+  border: 0;
+  cursor: pointer;
+  margin-top: 9px;
+}
+
+.approval-confirmation {
+  padding: 8px 10px;
+  background: var(--success-light);
+  border: 1px solid var(--success-border);
+  border-radius: var(--radius-sm);
+  color: var(--success);
+  font-size: 0.74rem;
+  font-weight: 700;
+}
+
 .order-product-line {
   display: flex;
   justify-content: space-between;

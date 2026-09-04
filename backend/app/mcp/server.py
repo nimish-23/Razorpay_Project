@@ -103,13 +103,30 @@ def _evaluate_transaction_policy(
     session,
     authorization: AgentAuthorization,
     amount: float,
-) -> Optional[dict]:
+    approval_granted: bool = False,
+) -> tuple[dict[str, object], object]:
     policy = PolicyService(session).get_or_create(authorization)
-    decision = PolicyService(session).evaluate(policy, amount)
+    decision = PolicyService(session).evaluate(
+        policy,
+        amount,
+        approval_granted=approval_granted,
+    )
+    return decision, policy
+
+
+def _audit_policy_decision(
+    session,
+    authorization: AgentAuthorization,
+    policy,
+    decision: dict[str, object],
+    amount: float,
+    order_id: Optional[str] = None,
+) -> None:
     audit_service = AuditService(session, SESSION_ID)
     audit_data = {
         "agent_id": authorization.agent_id,
         "session_id": SESSION_ID,
+        "order_id": order_id,
         "transaction_amount": amount,
         "maximum_transaction_amount": policy.maximum_transaction_amount,
         "approval_threshold": policy.approval_threshold,
@@ -123,40 +140,26 @@ def _evaluate_transaction_policy(
             reason=str(decision["reason"]),
             input_data=audit_data,
             result_data=decision,
+            order_id=order_id,
         )
-        return {
-            "allowed": False,
-            "error": "policy_violation",
-            "message": "Transaction blocked by AgentPay policy.",
-            "reason": decision["reason"],
-        }
-
-    if decision["approval_required"]:
+    elif decision["approval_required"]:
         audit_service.log_event(
             tool_name="policy_approval_required",
             decision="approval_required",
             reason=str(decision["reason"]),
             input_data=audit_data,
             result_data=decision,
+            order_id=order_id,
         )
-        return {
-            "allowed": True,
-            "approval_required": True,
-            "error": "approval_required",
-            "message": (
-                "User approval is required before this transaction can proceed."
-            ),
-            "reason": decision["reason"],
-        }
-
-    audit_service.log_event(
-        tool_name="policy_check_passed",
-        decision="allowed",
-        reason=str(decision["reason"]),
-        input_data=audit_data,
-        result_data=decision,
-    )
-    return None
+    else:
+        audit_service.log_event(
+            tool_name="policy_check_passed",
+            decision="allowed",
+            reason=str(decision["reason"]),
+            input_data=audit_data,
+            result_data=decision,
+            order_id=order_id,
+        )
 
 @server.tool(
     name="search_catalog",
@@ -235,13 +238,24 @@ def create_order(
 
             product = session.get(Product, item_id)
             if product is not None and qty > 0:
-                policy_failure = _evaluate_transaction_policy(
+                decision, policy = _evaluate_transaction_policy(
                     session,
                     authorization,
                     product.price * qty,
                 )
-                if policy_failure:
-                    return policy_failure
+                if not decision["allowed"]:
+                    _audit_policy_decision(
+                        session, authorization, policy, decision,
+                        product.price * qty,
+                    )
+                    return {
+                        "success": False,
+                        "policy_violation": True,
+                        "allowed": False,
+                        "error": "policy_violation",
+                        "message": "Transaction blocked by AgentPay policy.",
+                        "reason": decision["reason"],
+                    }
 
             order_service = OrderService(
             session,
@@ -253,6 +267,30 @@ def create_order(
                 qty=qty,
                 selected_attributes=selected_attributes,
             )
+
+            if product is not None and qty > 0 and decision["approval_required"]:
+                order.status = "approval_required"
+                session.add(order)
+                session.commit()
+                session.refresh(order)
+                _audit_policy_decision(
+                    session, authorization, policy, decision,
+                    order.amount, order.order_id,
+                )
+                return {
+                    "success": False,
+                    "approval_required": True,
+                    "order_id": order.order_id,
+                    "message": (
+                        "User approval is required before payment can proceed."
+                    ),
+                }
+
+            if product is not None and qty > 0:
+                _audit_policy_decision(
+                    session, authorization, policy, decision,
+                    order.amount, order.order_id,
+                )
 
             return {
                 "success": True,
@@ -341,13 +379,42 @@ def create_payment(
                     "error": f"Order '{order_id}' was not found.",
                 }
 
-            policy_failure = _evaluate_transaction_policy(
+            decision, policy = _evaluate_transaction_policy(
                 session,
                 authorization,
                 order.amount,
+                approval_granted=order.status == "approved",
             )
-            if policy_failure:
-                return policy_failure
+            if not decision["allowed"]:
+                _audit_policy_decision(
+                    session, authorization, policy, decision,
+                    order.amount, order.order_id,
+                )
+                return {
+                    "success": False,
+                    "policy_violation": True,
+                    "allowed": False,
+                    "error": "policy_violation",
+                    "message": "Transaction blocked by AgentPay policy.",
+                    "reason": decision["reason"],
+                }
+            if decision["approval_required"]:
+                _audit_policy_decision(
+                    session, authorization, policy, decision,
+                    order.amount, order.order_id,
+                )
+                return {
+                    "success": False,
+                    "approval_required": True,
+                    "order_id": order.order_id,
+                    "message": (
+                        "User approval is required before payment can proceed."
+                    ),
+                }
+            _audit_policy_decision(
+                session, authorization, policy, decision,
+                order.amount, order.order_id,
+            )
 
             product = session.get(
                 Product,

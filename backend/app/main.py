@@ -177,6 +177,76 @@ def update_policy(policy_request: PolicyRequest):
         return policy_response(policy)
 
 
+@app.post("/orders/{order_id}/approve")
+def approve_order(order_id: str):
+    session_id = get_active_session_id()
+    if not session_id:
+        raise HTTPException(
+            status_code=404,
+            detail="Approval failed: no active MCP session.",
+        )
+
+    with get_session() as session:
+        order = session.get(Order, order_id)
+        authorization = AuthorizationService(session).get_active(session_id)
+        audit_service = AuditService(session, session_id)
+
+        if not order or order.session_id != session_id:
+            if order:
+                audit_service.log_approval_failed(
+                    order_id=order_id,
+                    agent_id=authorization.agent_id if authorization else None,
+                    amount=order.amount,
+                    reason="Order does not belong to the current session.",
+                )
+            raise HTTPException(
+                status_code=404,
+                detail="Approval failed: order not found for the current session.",
+            )
+
+        if order.status != "approval_required":
+            audit_service.log_approval_failed(
+                order_id=order.order_id,
+                agent_id=authorization.agent_id if authorization else None,
+                amount=order.amount,
+                reason="Order is not waiting for user approval.",
+            )
+            raise HTTPException(
+                status_code=409,
+                detail="Approval failed: order is not waiting for approval.",
+            )
+
+        if not authorization:
+            audit_service.log_approval_failed(
+                order_id=order.order_id,
+                agent_id=None,
+                amount=order.amount,
+                reason="No active authorization exists for the current session.",
+            )
+            raise HTTPException(
+                status_code=403,
+                detail="Approval failed: current session is not authorized.",
+            )
+
+        order.status = "approved"
+        session.add(order)
+        session.commit()
+        session.refresh(order)
+        audit_service.log_transaction_approved(
+            order_id=order.order_id,
+            agent_id=authorization.agent_id,
+            amount=order.amount,
+        )
+
+        return {
+            "order_id": order.order_id,
+            "session_id": order.session_id,
+            "status": order.status,
+            "amount": order.amount,
+            "currency": order.currency,
+        }
+
+
 @app.get("/health")
 def health_check():
     return {

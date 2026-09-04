@@ -414,12 +414,27 @@
     const isPlaced = historyTools.has('order_placed') || order.status === 'paid';
     const orderState = ['failed', 'cancelled', 'rejected', 'error'].some(
       value => String(order.status).toLowerCase().includes(value)
-    ) ? 'warning' : order.status === 'paid' ? 'success' : 'pending';
+    ) ? 'warning' : ['paid', 'approved'].includes(order.status) ? 'success' : 'pending';
     const orderStatusLabel = orderState === 'warning'
       ? 'Failed'
       : orderState === 'success'
-        ? (isPlaced ? 'Completed' : 'Paid')
+        ? (isPlaced ? 'Completed' : order.status === 'approved' ? 'Approved' : 'Paid')
         : 'Pending Payment';
+    const approvalPanel = order.status === 'approval_required' ? `
+      <div class="approval-panel">
+        <div class="approval-title">User Approval Required</div>
+        <p>This transaction exceeds your automatic approval threshold.</p>
+        <div class="approval-summary">
+          <span>Amount: <strong>${formatCurrency(order.amount, order.currency)}</strong></span>
+          <span>Threshold: <strong>${formatCurrency(Number(elements.policyApproval.value), order.currency)}</strong></span>
+        </div>
+        <button class="btn-pay-link approval-button" type="button" onclick="window.approveOrder('${escapeHtml(order.order_id)}')">
+          Approve Transaction
+        </button>
+      </div>
+    ` : order.status === 'approved' ? `
+      <div class="approval-confirmation">✓ Transaction Approved</div>
+    ` : '';
 
     elements.orderCard.innerHTML = `
       <!-- Order Overview Box -->
@@ -441,6 +456,8 @@
           <span class="price-value">${formatCurrency(order.amount, order.currency)} <span style="font-size: 0.85rem; font-weight: 600; color: var(--text-muted);">${escapeHtml(order.currency)}</span></span>
         </div>
       </div>
+
+      ${approvalPanel}
 
       <!-- Clean Horizontal Progress Stepper -->
       <div class="progress-stepper-card">
@@ -773,6 +790,18 @@
     if (!orderId) return;
     state.selectedOrderId = orderId;
     elements.orderSelect.value = orderId;
+    pollCycle();
+  };
+
+  window.approveOrder = async function(orderId) {
+    const res = await fetch(`${API_BASE}/orders/${encodeURIComponent(orderId)}/approve`, {
+      method: 'POST',
+    });
+    const data = await res.json();
+    if (!res.ok) {
+      console.error('Approval failed:', data.detail || data);
+      return;
+    }
     pollCycle();
   };
 
