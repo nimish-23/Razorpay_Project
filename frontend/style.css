@@ -342,6 +342,70 @@ body {
   color: var(--text-main);
 }
 
+.authorization-card {
+  min-width: 0;
+}
+
+.authorization-description {
+  margin-top: 2px;
+  color: var(--text-muted);
+  font-size: 0.72rem;
+}
+
+.authorization-button {
+  flex-shrink: 0;
+}
+
+.authorization-details {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+  padding: 12px 18px;
+}
+
+.authorization-field {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  min-width: 0;
+  padding: 8px 10px;
+  background: var(--bg-inset);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+}
+
+.authorization-label {
+  color: var(--text-muted);
+  font-size: 0.7rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.authorization-value,
+.authorization-status {
+  min-width: 0;
+  overflow-wrap: anywhere;
+  color: var(--text-body);
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  font-weight: 600;
+  text-align: right;
+}
+
+.authorization-status {
+  color: var(--warning);
+}
+
+.authorization-status-authorized {
+  color: var(--success);
+}
+
+.authorization-button:disabled {
+  cursor: default;
+  opacity: 0.7;
+}
+
 /* ==========================================================================
    Left Column: Live Activity Feed
    ========================================================================== */
@@ -1057,6 +1121,11 @@ body {
     gap: 10px;
   }
 
+  .authorization-details {
+    padding: 10px 14px;
+    gap: 8px;
+  }
+
   .timeline-body {
     padding: 12px 14px;
   }
@@ -1120,6 +1189,24 @@ body {
 
   .order-select-wrap {
     max-width: 100%;
+  }
+
+  .authorization-card .card-header {
+    align-items: flex-start;
+  }
+
+  .authorization-button {
+    width: 100%;
+    justify-content: center;
+  }
+
+  .authorization-details {
+    grid-template-columns: 1fr;
+    padding: 8px 10px 10px;
+  }
+
+  .authorization-field {
+    padding: 7px 8px;
   }
 
   .order-dropdown {

@@ -138,6 +138,34 @@
       </section>
     </div>
 
+    <!-- Agent Authorization -->
+    <section class="card authorization-card" aria-labelledby="authorizationTitle">
+      <div class="card-header">
+        <div>
+          <h2 class="card-title" id="authorizationTitle">Agent Authorization</h2>
+          <p class="authorization-description">Authorize an AI agent to act on your behalf.</p>
+        </div>
+        <button class="btn-refresh authorization-button" type="button" id="generateAuthorizationBtn">
+          Generate Authorization
+        </button>
+      </div>
+
+      <div class="authorization-details">
+        <div class="authorization-field">
+          <span class="authorization-label">Agent ID</span>
+          <span class="authorization-value" id="authorizationAgentId">Not authorized</span>
+        </div>
+        <div class="authorization-field">
+          <span class="authorization-label">Authorization Token</span>
+          <span class="authorization-value" id="authorizationToken">Not generated</span>
+        </div>
+        <div class="authorization-field">
+          <span class="authorization-label">Status</span>
+          <span class="authorization-status" id="authorizationStatus">Not Authorized</span>
+        </div>
+      </div>
+    </section>
+
     <!-- Bottom Section: Order Activity Timeline -->
     <section class="card card-timeline">
       <div class="card-header">

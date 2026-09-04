@@ -28,6 +28,10 @@
     syncText: document.getElementById('syncText'),
     syncStatus: document.getElementById('syncStatus'),
     refreshBtn: document.getElementById('refreshBtn'),
+    authorizationAgentId: document.getElementById('authorizationAgentId'),
+    authorizationToken: document.getElementById('authorizationToken'),
+    authorizationStatus: document.getElementById('authorizationStatus'),
+    generateAuthorizationBtn: document.getElementById('generateAuthorizationBtn'),
   };
 
   const API_BASE = window.location.origin;
@@ -115,6 +119,40 @@
     const res = await fetch(`${API_BASE}/orders/${encodeURIComponent(orderId)}/history`);
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     return await res.json();
+  }
+
+  async function fetchActiveAuthorization() {
+    const res = await fetch(`${API_BASE}/authorization/active`);
+    if (res.status === 404) return null;
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    return await res.json();
+  }
+
+  function renderAuthorization(authorization) {
+    if (!authorization) return;
+    elements.authorizationAgentId.textContent = authorization.agent_id;
+    elements.authorizationStatus.textContent = 'Authorized';
+    elements.authorizationStatus.classList.add('authorization-status-authorized');
+  }
+
+  async function generateAuthorization() {
+    elements.generateAuthorizationBtn.disabled = true;
+    try {
+      const res = await fetch(`${API_BASE}/authorization/generate`, {
+        method: 'POST',
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.detail || `HTTP ${res.status}`);
+
+      elements.authorizationAgentId.textContent = data.agent_id;
+      elements.authorizationToken.textContent = data.authorization_token;
+      elements.authorizationStatus.textContent = 'Authorized';
+      elements.authorizationStatus.classList.add('authorization-status-authorized');
+      elements.generateAuthorizationBtn.textContent = 'Authorized';
+    } catch (error) {
+      console.error('Authorization generation failed:', error);
+      elements.generateAuthorizationBtn.disabled = false;
+    }
   }
 
   // =========================================================================
@@ -699,6 +737,12 @@
   elements.refreshBtn.addEventListener('click', () => {
     pollCycle();
   });
+
+  elements.generateAuthorizationBtn.addEventListener('click', generateAuthorization);
+
+  fetchActiveAuthorization()
+    .then(renderAuthorization)
+    .catch(error => console.error('Authorization lookup failed:', error));
 
   // Initial trigger & recurring 1.5s poll
   pollCycle();

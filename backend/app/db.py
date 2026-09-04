@@ -2,7 +2,7 @@ from pathlib import Path
 
 from sqlmodel import SQLModel, Session, create_engine
 
-from app.models import Product, Order, AuditLog
+from app.models import Product, Order, AuditLog, AgentAuthorization
 
 
 # backend/

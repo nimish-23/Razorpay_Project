@@ -13,6 +13,7 @@ from app.db import create_db_and_tables, get_session
 from app.models.order import Order
 from app.models.product import Product
 from app.services.audit_service import AuditService
+from app.services.authorization_service import AuthorizationService
 from app.services.catalog_service import CatalogService
 from app.services.order_service import OrderService
 from app.services.webhook_service import WebhookService
@@ -60,6 +61,54 @@ def startup():
 @app.get("/session/active")
 def get_active_session():
     return {"session_id": get_active_session_id()}
+
+
+@app.post("/authorization/generate")
+def generate_authorization():
+    session_id = get_active_session_id()
+    if not session_id:
+        raise HTTPException(
+            status_code=503,
+            detail="No active MCP session is available.",
+        )
+
+    with get_session() as session:
+        service = AuthorizationService(session)
+        try:
+            authorization, token = service.generate(session_id)
+        except ValueError as error:
+            raise HTTPException(status_code=409, detail=str(error))
+
+        return {
+            "agent_id": authorization.agent_id,
+            "authorization_token": token,
+            "status": "authorized",
+            "session_id": authorization.session_id,
+        }
+
+
+@app.get("/authorization/active")
+def get_active_authorization():
+    session_id = get_active_session_id()
+    if not session_id:
+        raise HTTPException(
+            status_code=404,
+            detail="Not authorized: no active MCP session.",
+        )
+
+    with get_session() as session:
+        authorization = AuthorizationService(session).get_active(session_id)
+        if not authorization:
+            raise HTTPException(
+                status_code=404,
+                detail="Not authorized for the current session.",
+            )
+
+        return {
+            "agent_id": authorization.agent_id,
+            "status": "authorized",
+            "session_id": authorization.session_id,
+        }
 
 
 @app.get("/health")
