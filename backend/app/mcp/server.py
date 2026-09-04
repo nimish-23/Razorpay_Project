@@ -1,13 +1,15 @@
 from typing import Optional, Any
 from pathlib import Path
 
-from mcp.server.mcpserver import MCPServer
+from mcp.server.mcpserver import Context, MCPServer
 from razorpay.errors import BadRequestError, GatewayError, ServerError
 from uuid import uuid4
 from app.db import get_session
 from app.models.order import Order
 from app.models.product import Product
 from app.services.catalog_service import CatalogService
+from app.services.audit_service import AuditService
+from app.services.authorization_service import AuthorizationService
 from app.services.order_service import OrderService
 from app.services.payment_service import PaymentService
 
@@ -34,6 +36,65 @@ def format_razorpay_error(error: Exception) -> str:
     return "Razorpay error: " + "; ".join(
         detail for detail in details if detail
     )
+
+
+def _token_from_request(
+    authorization_token: Optional[str],
+    ctx: Optional[Context],
+) -> Optional[str]:
+    if authorization_token:
+        return authorization_token
+    if ctx is None:
+        return None
+
+    try:
+        headers = ctx.headers or {}
+    except ValueError:
+        return None
+
+    bearer = headers.get("authorization") or headers.get("Authorization")
+    if bearer and bearer.lower().startswith("bearer "):
+        return bearer[7:].strip() or None
+    return headers.get("x-agent-authorization")
+
+
+def _authorize_transaction(
+    session,
+    tool_name: str,
+    authorization_token: Optional[str],
+    ctx: Optional[Context],
+) -> Optional[dict]:
+    token = _token_from_request(authorization_token, ctx)
+    authorization, result = AuthorizationService(session).validate(
+        token,
+        SESSION_ID,
+    )
+    if authorization:
+        return None
+
+    agent_id = authorization.agent_id if authorization else None
+    AuditService(session, SESSION_ID).log_event(
+        tool_name="agent_authorization_failed",
+        decision="denied",
+        reason=f"Agent authorization failed: {result}.",
+        input_data={
+            "agent_id": agent_id,
+            "session_id": SESSION_ID,
+            "authorization_result": result,
+        },
+        result_data={
+            "authorized": False,
+            "failure_reason": result,
+        },
+    )
+    return {
+        "authorized": False,
+        "error": "agent_not_authorized",
+        "message": (
+            "Agent authorization is required before performing this transaction."
+        ),
+        "reason": result,
+    }
 
 @server.tool(
     name="search_catalog",
@@ -85,18 +146,30 @@ def search_catalog(
     name="create_order",
     description=(
         "Create an order for a product. "
-        "Quantity and optional product attributes can be provided."
+        "Quantity and optional product attributes can be provided. "
+        "Pass the authorization_token from AgentPay to authorize the transaction."
     )
 )
 def create_order(
     item_id: str,
     qty: int = 1,
     selected_attributes: Optional[dict[str, Any]] = None,
+    authorization_token: Optional[str] = None,
+    ctx: Context = None,
 ) -> dict:
 
     try:
 
         with get_session() as session:
+
+            authorization_failure = _authorize_transaction(
+                session,
+                "create_order",
+                authorization_token,
+                ctx,
+            )
+            if authorization_failure:
+                return authorization_failure
 
             order_service = OrderService(
             session,
@@ -163,13 +236,27 @@ def get_order_status(order_id: str) -> dict:
     description=(
         "Create a Razorpay payment link for an existing order. "
         "Use the local order_id returned by create_order. "
-        "Returns a payment URL that can be given to the customer."
+        "Returns a payment URL that can be given to the customer. "
+        "Pass the authorization_token from AgentPay to authorize the transaction."
     )
 )
-def create_payment(order_id: str) -> dict:
+def create_payment(
+    order_id: str,
+    authorization_token: Optional[str] = None,
+    ctx: Context = None,
+) -> dict:
 
     try:
         with get_session() as session:
+
+            authorization_failure = _authorize_transaction(
+                session,
+                "create_payment",
+                authorization_token,
+                ctx,
+            )
+            if authorization_failure:
+                return authorization_failure
 
             order = session.get(Order, order_id)
 
