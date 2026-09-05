@@ -195,6 +195,55 @@ class AuditService:
             order_id=order_id,
         )
 
+    def log_transaction_approved(
+        self,
+        order_id: str,
+        agent_id: str,
+        amount: float,
+    ) -> AuditLog:
+        return self.log_event(
+            tool_name="transaction_approved",
+            decision="approved",
+            reason="Transaction approved by the user.",
+            input_data={
+                "order_id": order_id,
+                "agent_id": agent_id,
+                "amount": amount,
+                "session_id": self.session_id,
+            },
+            result_data={
+                "order_id": order_id,
+                "approved": True,
+                "amount": amount,
+            },
+            order_id=order_id,
+        )
+
+    def log_approval_failed(
+        self,
+        order_id: str,
+        agent_id: str | None,
+        amount: float,
+        reason: str,
+    ) -> AuditLog:
+        return self.log_event(
+            tool_name="approval_failed",
+            decision="denied",
+            reason=reason,
+            input_data={
+                "order_id": order_id,
+                "agent_id": agent_id,
+                "amount": amount,
+                "session_id": self.session_id,
+            },
+            result_data={
+                "order_id": order_id,
+                "approved": False,
+                "reason": reason,
+            },
+            order_id=order_id,
+        )
+
     def get_order_history(self, order_id: str) -> list[AuditLog]:
         statement = (
             select(AuditLog)

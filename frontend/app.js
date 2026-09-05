@@ -28,6 +28,15 @@
     syncText: document.getElementById('syncText'),
     syncStatus: document.getElementById('syncStatus'),
     refreshBtn: document.getElementById('refreshBtn'),
+    authorizationAgentId: document.getElementById('authorizationAgentId'),
+    authorizationToken: document.getElementById('authorizationToken'),
+    authorizationStatus: document.getElementById('authorizationStatus'),
+    generateAuthorizationBtn: document.getElementById('generateAuthorizationBtn'),
+    policyMaximum: document.getElementById('policyMaximum'),
+    policyApproval: document.getElementById('policyApproval'),
+    policyVerification: document.getElementById('policyVerification'),
+    policyMessage: document.getElementById('policyMessage'),
+    savePolicyBtn: document.getElementById('savePolicyBtn'),
   };
 
   const API_BASE = window.location.origin;
@@ -117,6 +126,82 @@
     return await res.json();
   }
 
+  async function fetchActiveAuthorization() {
+    const res = await fetch(`${API_BASE}/authorization/active`);
+    if (res.status === 404) return null;
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    return await res.json();
+  }
+
+  async function fetchActivePolicy() {
+    const res = await fetch(`${API_BASE}/policy/active`);
+    if (res.status === 404) return null;
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    return await res.json();
+  }
+
+  function renderPolicy(policy) {
+    if (!policy) return;
+    elements.policyMaximum.value = policy.maximum_transaction_amount;
+    elements.policyApproval.value = policy.approval_threshold;
+    elements.policyVerification.checked = policy.payment_verification_required;
+  }
+
+  async function savePolicy() {
+    elements.savePolicyBtn.disabled = true;
+    elements.policyMessage.textContent = '';
+    try {
+      const res = await fetch(`${API_BASE}/policy`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          maximum_transaction_amount: Number(elements.policyMaximum.value),
+          approval_threshold: Number(elements.policyApproval.value),
+          payment_verification_required: elements.policyVerification.checked,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.detail || `HTTP ${res.status}`);
+      renderPolicy(data);
+      elements.policyMessage.textContent = 'Policy saved';
+    } catch (error) {
+      elements.policyMessage.textContent = 'Unable to save policy';
+      console.error('Policy update failed:', error);
+    } finally {
+      elements.savePolicyBtn.disabled = false;
+    }
+  }
+
+  function renderAuthorization(authorization) {
+    if (!authorization) return;
+    elements.authorizationAgentId.textContent = authorization.agent_id;
+    elements.authorizationStatus.textContent = 'Authorized';
+    elements.authorizationStatus.classList.add('authorization-status-authorized');
+  }
+
+  async function generateAuthorization() {
+    elements.generateAuthorizationBtn.disabled = true;
+    try {
+      const res = await fetch(`${API_BASE}/authorization/generate`, {
+        method: 'POST',
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.detail || `HTTP ${res.status}`);
+
+      elements.authorizationAgentId.textContent = data.agent_id;
+      elements.authorizationToken.textContent = data.authorization_token;
+      elements.authorizationStatus.textContent = 'Authorized';
+      elements.authorizationStatus.classList.add('authorization-status-authorized');
+      elements.generateAuthorizationBtn.textContent = 'Authorized';
+      fetchActivePolicy()
+        .then(renderPolicy)
+        .catch(error => console.error('Policy lookup failed:', error));
+    } catch (error) {
+      console.error('Authorization generation failed:', error);
+      elements.generateAuthorizationBtn.disabled = false;
+    }
+  }
+
   // =========================================================================
   // Renderers
   // =========================================================================
@@ -154,11 +239,14 @@
 
   function createActivityItem(evt, highlight = false) {
     const item = document.createElement('div');
-    item.className = `activity-item ${highlight ? 'item-fresh' : ''}`;
+    const eventState = getEventState(evt);
+    item.className = `activity-item activity-${eventState} ${highlight ? 'item-fresh' : ''}`;
     item.dataset.eventId = evt.id;
 
     const toolName = evt.tool_name || 'event';
     const timeStr = formatTime(evt.timestamp);
+    const decision = evt.decision || evt.result?.status || 'recorded';
+    const reason = evt.reason || 'Event recorded';
 
     let headline = '';
     let metaHtml = '';
@@ -278,15 +366,34 @@
         <span class="event-pill pill-${escapeHtml(toolName)}">
           ${escapeHtml(toolName)}
         </span>
+        <span class="event-state state-${eventState}">${escapeHtml(decision)}</span>
         <span class="activity-time">${timeStr}</span>
       </div>
       <div class="activity-headline">${headline}</div>
+      <div class="activity-reason" title="${escapeHtml(reason)}">${escapeHtml(reason)}</div>
       <div class="activity-meta-tags">
         ${metaHtml}
       </div>
     `;
 
     return item;
+  }
+
+  function getEventState(evt) {
+    if (['catalog_search', 'order_created', 'payment_finished', 'order_placed'].includes(evt.tool_name)) {
+      return 'success';
+    }
+    if (evt.tool_name === 'payment_initiated') {
+      return 'pending';
+    }
+    const status = String(evt.result?.status || evt.decision || '').toLowerCase();
+    if (['failed', 'failure', 'error', 'cancelled', 'rejected'].some(value => status.includes(value))) {
+      return 'warning';
+    }
+    if (['pending', 'created', 'initiated', 'partially_paid'].some(value => status.includes(value))) {
+      return 'pending';
+    }
+    return 'success';
   }
 
   function renderCurrentOrder(order, history = []) {
@@ -305,14 +412,37 @@
     const isPaymentInitiated = historyTools.has('payment_initiated') || !!order.razorpay_payment_link_id;
     const isPaid = historyTools.has('payment_finished') || order.status === 'paid';
     const isPlaced = historyTools.has('order_placed') || order.status === 'paid';
+    const orderState = ['failed', 'cancelled', 'rejected', 'error'].some(
+      value => String(order.status).toLowerCase().includes(value)
+    ) ? 'warning' : ['paid', 'approved'].includes(order.status) ? 'success' : 'pending';
+    const orderStatusLabel = orderState === 'warning'
+      ? 'Failed'
+      : orderState === 'success'
+        ? (isPlaced ? 'Completed' : order.status === 'approved' ? 'Approved' : 'Paid')
+        : 'Pending Payment';
+    const approvalPanel = order.status === 'approval_required' ? `
+      <div class="approval-panel">
+        <div class="approval-title">User Approval Required</div>
+        <p>This transaction exceeds your automatic approval threshold.</p>
+        <div class="approval-summary">
+          <span>Amount: <strong>${formatCurrency(order.amount, order.currency)}</strong></span>
+          <span>Threshold: <strong>${formatCurrency(Number(elements.policyApproval.value), order.currency)}</strong></span>
+        </div>
+        <button class="btn-pay-link approval-button" type="button" onclick="window.approveOrder('${escapeHtml(order.order_id)}')">
+          Approve Transaction
+        </button>
+      </div>
+    ` : order.status === 'approved' ? `
+      <div class="approval-confirmation">✓ Transaction Approved</div>
+    ` : '';
 
     elements.orderCard.innerHTML = `
       <!-- Order Overview Box -->
       <div class="order-overview-box">
         <div class="order-title-row">
           <div class="order-number">Order #${escapeHtml(order.order_id)}</div>
-          <span class="order-status-badge ${order.status === 'paid' ? 'pill-order_created' : 'pill-payment_initiated'}">
-            ${order.status === 'paid' ? '✓ Paid' : 'Pending Payment'}
+          <span class="order-status-badge order-state-${orderState}">
+            ${orderState === 'success' ? '✓ ' : orderState === 'warning' ? '! ' : '● '}${orderStatusLabel}
           </span>
         </div>
 
@@ -326,6 +456,8 @@
           <span class="price-value">${formatCurrency(order.amount, order.currency)} <span style="font-size: 0.85rem; font-weight: 600; color: var(--text-muted);">${escapeHtml(order.currency)}</span></span>
         </div>
       </div>
+
+      ${approvalPanel}
 
       <!-- Clean Horizontal Progress Stepper -->
       <div class="progress-stepper-card">
@@ -661,6 +793,18 @@
     pollCycle();
   };
 
+  window.approveOrder = async function(orderId) {
+    const res = await fetch(`${API_BASE}/orders/${encodeURIComponent(orderId)}/approve`, {
+      method: 'POST',
+    });
+    const data = await res.json();
+    if (!res.ok) {
+      console.error('Approval failed:', data.detail || data);
+      return;
+    }
+    pollCycle();
+  };
+
   elements.orderSelect.addEventListener('change', (e) => {
     state.selectedOrderId = e.target.value;
     pollCycle();
@@ -669,6 +813,17 @@
   elements.refreshBtn.addEventListener('click', () => {
     pollCycle();
   });
+
+  elements.generateAuthorizationBtn.addEventListener('click', generateAuthorization);
+  elements.savePolicyBtn.addEventListener('click', savePolicy);
+
+  fetchActiveAuthorization()
+    .then(renderAuthorization)
+    .catch(error => console.error('Authorization lookup failed:', error));
+
+  fetchActivePolicy()
+    .then(renderPolicy)
+    .catch(error => console.error('Policy lookup failed:', error));
 
   // Initial trigger & recurring 1.5s poll
   pollCycle();

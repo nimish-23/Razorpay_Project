@@ -1,14 +1,19 @@
 from typing import Optional, Any
 from pathlib import Path
 
-from mcp.server.mcpserver import MCPServer
+from mcp.server.mcpserver import Context, MCPServer
 from razorpay.errors import BadRequestError, GatewayError, ServerError
 from uuid import uuid4
 from app.db import get_session
 from app.models.order import Order
 from app.models.product import Product
+from app.models.agent_authorization import AgentAuthorization
 from app.services.catalog_service import CatalogService
+from app.services.audit_service import AuditService
+from app.services.approval_service import ApprovalService
+from app.services.authorization_service import AuthorizationService
 from app.services.order_service import OrderService
+from app.services.policy_service import PolicyService
 from app.services.payment_service import PaymentService
 
 
@@ -34,6 +39,240 @@ def format_razorpay_error(error: Exception) -> str:
     return "Razorpay error: " + "; ".join(
         detail for detail in details if detail
     )
+
+
+def _token_from_request(
+    authorization_token: Optional[str],
+    ctx: Optional[Context],
+) -> tuple[Optional[str], bool]:
+    if authorization_token:
+        return authorization_token, True
+    if ctx is None:
+        return None, False
+
+    try:
+        headers = ctx.headers
+    except ValueError:
+        return None, False
+
+    if headers is None:
+        return None, False
+
+    bearer = headers.get("authorization") or headers.get("Authorization")
+    if bearer and bearer.lower().startswith("bearer "):
+        return bearer[7:].strip() or None, True
+    return headers.get("x-agent-authorization"), True
+
+
+def _authorize_transaction(
+    session,
+    tool_name: str,
+    authorization_token: Optional[str],
+    ctx: Optional[Context],
+) -> tuple[Optional[AgentAuthorization], Optional[dict]]:
+    token, token_transport_available = _token_from_request(
+        authorization_token,
+        ctx,
+    )
+    authorization_service = AuthorizationService(session)
+    if token_transport_available:
+        authorization, result = authorization_service.validate(
+            token,
+            SESSION_ID,
+        )
+    else:
+        authorization, result = (
+            authorization_service.validate_current_session_authorization(
+                SESSION_ID
+            )
+        )
+    if authorization:
+        return authorization, None
+
+    agent_id = authorization.agent_id if authorization else None
+    AuditService(session, SESSION_ID).log_event(
+        tool_name="agent_authorization_failed",
+        decision="denied",
+        reason=f"Agent authorization failed: {result}.",
+        input_data={
+            "agent_id": agent_id,
+            "session_id": SESSION_ID,
+            "authorization_result": result,
+        },
+        result_data={
+            "authorized": False,
+            "failure_reason": result,
+        },
+    )
+    return authorization, {
+        "authorized": False,
+        "error": "agent_not_authorized",
+        "message": (
+            "Agent authorization is required before performing this transaction."
+        ),
+        "reason": result,
+    }
+
+
+def _evaluate_transaction_policy(
+    session,
+    authorization: AgentAuthorization,
+    amount: float,
+    approval_granted: bool = False,
+) -> tuple[dict[str, object], object]:
+    policy = PolicyService(session).get_or_create(authorization)
+    decision = PolicyService(session).evaluate(
+        policy,
+        amount,
+        approval_granted=approval_granted,
+    )
+    return decision, policy
+
+
+def _audit_policy_decision(
+    session,
+    authorization: AgentAuthorization,
+    policy,
+    decision: dict[str, object],
+    amount: float,
+    order_id: Optional[str] = None,
+) -> None:
+    audit_service = AuditService(session, SESSION_ID)
+    audit_data = {
+        "agent_id": authorization.agent_id,
+        "session_id": SESSION_ID,
+        "order_id": order_id,
+        "transaction_amount": amount,
+        "maximum_transaction_amount": policy.maximum_transaction_amount,
+        "approval_threshold": policy.approval_threshold,
+        "decision": decision,
+    }
+
+    if not decision["allowed"]:
+        audit_service.log_event(
+            tool_name="policy_check_failed",
+            decision="blocked",
+            reason=str(decision["reason"]),
+            input_data=audit_data,
+            result_data=decision,
+            order_id=order_id,
+        )
+    elif decision["approval_required"]:
+        audit_service.log_event(
+            tool_name="policy_approval_required",
+            decision="approval_required",
+            reason=str(decision["reason"]),
+            input_data=audit_data,
+            result_data=decision,
+            order_id=order_id,
+        )
+    else:
+        audit_service.log_event(
+            tool_name="policy_check_passed",
+            decision="allowed",
+            reason=str(decision["reason"]),
+            input_data=audit_data,
+            result_data=decision,
+            order_id=order_id,
+        )
+
+
+@server.tool(
+    name="get_agent_authorization",
+    description=(
+        "Read the authorization status and agent identity for the current "
+        "MCP session. Does not return or generate an authorization token."
+    ),
+)
+def get_agent_authorization() -> dict:
+    with get_session() as session:
+        authorization = AuthorizationService(session).get_active(SESSION_ID)
+
+        if not authorization:
+            return {
+                "authorized": False,
+                "agent_id": None,
+                "session_id": SESSION_ID,
+                "status": "not_authorized",
+                "message": (
+                    "No active AgentPay authorization exists for this MCP session."
+                ),
+            }
+
+        return {
+            "authorized": True,
+            "agent_id": authorization.agent_id,
+            "session_id": SESSION_ID,
+            "status": "authorized",
+        }
+
+
+@server.tool(
+    name="approve_transaction",
+    description=(
+        "Approve an order that is waiting for user approval. Payment is not "
+        "initiated by this tool; call create_payment separately afterward. "
+        "Call only after the user explicitly says yes or approves."
+    ),
+)
+def approve_transaction(order_id: str) -> dict:
+    try:
+        with get_session() as session:
+            authorization, authorization_failure = _authorize_transaction(
+                session,
+                "approve_transaction",
+                None,
+                None,
+            )
+            if authorization_failure:
+                return authorization_failure
+
+            order = session.get(Order, order_id)
+            approved_order, result = ApprovalService(session).approve(
+                order,
+                authorization,
+                SESSION_ID,
+            )
+
+            if result == "order_not_found":
+                return {
+                    "success": False,
+                    "approved": False,
+                    "error": "order_not_found",
+                    "message": (
+                        "Transaction could not be approved because the order "
+                        "was not found for this session."
+                    ),
+                }
+            if result == "not_awaiting_approval":
+                return {
+                    "success": False,
+                    "approved": False,
+                    "error": "approval_required",
+                    "message": (
+                        "Transaction could not be approved because the order "
+                        "is not awaiting approval."
+                    ),
+                }
+
+            return {
+                "success": True,
+                "approved": True,
+                "order_id": approved_order.order_id,
+                "status": approved_order.status,
+                "message": (
+                    "Transaction approved. The order is now approved and "
+                    "payment can be initiated."
+                ),
+            }
+    except ValueError as error:
+        return {
+            "success": False,
+            "approved": False,
+            "error": "approval_failed",
+            "message": str(error),
+        }
+
 
 @server.tool(
     name="search_catalog",
@@ -85,18 +324,55 @@ def search_catalog(
     name="create_order",
     description=(
         "Create an order for a product. "
-        "Quantity and optional product attributes can be provided."
+        "Quantity and optional product attributes can be provided. "
+        "Pass the authorization_token from AgentPay to authorize the transaction. "
+        "If approval_required is returned, you MUST ask the user for explicit "
+        "approval before calling approve_transaction; the initial purchase "
+        "request, including 'place the order', is not approval. Do not call "
+        "create_payment before approval."
     )
 )
 def create_order(
     item_id: str,
     qty: int = 1,
     selected_attributes: Optional[dict[str, Any]] = None,
+    authorization_token: Optional[str] = None,
+    ctx: Context = None,
 ) -> dict:
 
     try:
 
         with get_session() as session:
+
+            authorization, authorization_failure = _authorize_transaction(
+                session,
+                "create_order",
+                authorization_token,
+                ctx,
+            )
+            if authorization_failure:
+                return authorization_failure
+
+            product = session.get(Product, item_id)
+            if product is not None and qty > 0:
+                decision, policy = _evaluate_transaction_policy(
+                    session,
+                    authorization,
+                    product.price * qty,
+                )
+                if not decision["allowed"]:
+                    _audit_policy_decision(
+                        session, authorization, policy, decision,
+                        product.price * qty,
+                    )
+                    return {
+                        "success": False,
+                        "policy_violation": True,
+                        "allowed": False,
+                        "error": "policy_violation",
+                        "message": "Transaction blocked by AgentPay policy.",
+                        "reason": decision["reason"],
+                    }
 
             order_service = OrderService(
             session,
@@ -108,6 +384,35 @@ def create_order(
                 qty=qty,
                 selected_attributes=selected_attributes,
             )
+
+            if product is not None and qty > 0 and decision["approval_required"]:
+                order.status = "approval_required"
+                session.add(order)
+                session.commit()
+                session.refresh(order)
+                _audit_policy_decision(
+                    session, authorization, policy, decision,
+                    order.amount, order.order_id,
+                )
+                return {
+                    "success": False,
+                    "approval_required": True,
+                    "order_id": order.order_id,
+                    "amount": order.amount,
+                    "currency": order.currency,
+                    "approval_threshold": policy.approval_threshold,
+                    "message": (
+                        "User approval is required before this transaction can "
+                        "proceed to payment. Ask the user explicitly: Do you "
+                        "approve this transaction?"
+                    ),
+                }
+
+            if product is not None and qty > 0:
+                _audit_policy_decision(
+                    session, authorization, policy, decision,
+                    order.amount, order.order_id,
+                )
 
             return {
                 "success": True,
@@ -163,13 +468,29 @@ def get_order_status(order_id: str) -> dict:
     description=(
         "Create a Razorpay payment link for an existing order. "
         "Use the local order_id returned by create_order. "
-        "Returns a payment URL that can be given to the customer."
+        "Returns a payment URL that can be given to the customer. "
+        "Pass the authorization_token from AgentPay to authorize the transaction. "
+        "If the order is approval_required, do not initiate payment until "
+        "approve_transaction succeeds."
     )
 )
-def create_payment(order_id: str) -> dict:
+def create_payment(
+    order_id: str,
+    authorization_token: Optional[str] = None,
+    ctx: Context = None,
+) -> dict:
 
     try:
         with get_session() as session:
+
+            authorization, authorization_failure = _authorize_transaction(
+                session,
+                "create_payment",
+                authorization_token,
+                ctx,
+            )
+            if authorization_failure:
+                return authorization_failure
 
             order = session.get(Order, order_id)
 
@@ -181,6 +502,43 @@ def create_payment(order_id: str) -> dict:
                     "success": False,
                     "error": f"Order '{order_id}' was not found.",
                 }
+
+            decision, policy = _evaluate_transaction_policy(
+                session,
+                authorization,
+                order.amount,
+                approval_granted=order.status == "approved",
+            )
+            if not decision["allowed"]:
+                _audit_policy_decision(
+                    session, authorization, policy, decision,
+                    order.amount, order.order_id,
+                )
+                return {
+                    "success": False,
+                    "policy_violation": True,
+                    "allowed": False,
+                    "error": "policy_violation",
+                    "message": "Transaction blocked by AgentPay policy.",
+                    "reason": decision["reason"],
+                }
+            if decision["approval_required"]:
+                _audit_policy_decision(
+                    session, authorization, policy, decision,
+                    order.amount, order.order_id,
+                )
+                return {
+                    "success": False,
+                    "approval_required": True,
+                    "order_id": order.order_id,
+                    "message": (
+                        "User approval is required before payment can proceed."
+                    ),
+                }
+            _audit_policy_decision(
+                session, authorization, policy, decision,
+                order.amount, order.order_id,
+            )
 
             product = session.get(
                 Product,

@@ -301,6 +301,15 @@ body {
   letter-spacing: -0.01em;
 }
 
+.audit-section-label {
+  padding: 8px 12px 0;
+  color: var(--text-light);
+  font-family: var(--font-mono);
+  font-size: 0.64rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+}
+
 .badge-count {
   font-size: 0.7rem;
   font-family: var(--font-mono);
@@ -331,6 +340,153 @@ body {
   background: var(--bg-subtle);
   border-color: var(--border-medium);
   color: var(--text-main);
+}
+
+.authorization-card {
+  min-width: 0;
+}
+
+.authorization-description {
+  margin-top: 2px;
+  color: var(--text-muted);
+  font-size: 0.72rem;
+}
+
+.authorization-button {
+  flex-shrink: 0;
+}
+
+.authorization-details {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+  padding: 12px 18px;
+}
+
+.authorization-field {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  min-width: 0;
+  padding: 8px 10px;
+  background: var(--bg-inset);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+}
+
+.authorization-label {
+  color: var(--text-muted);
+  font-size: 0.7rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.authorization-value,
+.authorization-status {
+  min-width: 0;
+  overflow-wrap: anywhere;
+  color: var(--text-body);
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  font-weight: 600;
+  text-align: right;
+}
+
+.authorization-status {
+  color: var(--warning);
+}
+
+.authorization-status-authorized {
+  color: var(--success);
+}
+
+.authorization-button:disabled {
+  cursor: default;
+  opacity: 0.7;
+}
+
+.policy-section {
+  padding: 0 18px 14px;
+  border-top: 1px solid var(--border-subtle);
+}
+
+.policy-section-title {
+  padding: 10px 0 8px;
+  color: var(--text-body);
+  font-size: 0.72rem;
+  font-weight: 700;
+}
+
+.policy-fields {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.policy-field {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  min-width: 0;
+  color: var(--text-muted);
+  font-size: 0.7rem;
+  font-weight: 600;
+}
+
+.policy-input-wrap {
+  display: inline-flex;
+  align-items: center;
+  flex: 0 1 108px;
+  gap: 3px;
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+}
+
+.policy-input-wrap input {
+  width: 100%;
+  min-width: 0;
+  padding: 5px 6px;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  color: var(--text-main);
+  font: 600 0.7rem var(--font-mono);
+}
+
+.policy-toggle-field {
+  justify-content: flex-start;
+}
+
+.policy-toggle-field input {
+  accent-color: var(--success);
+  margin-left: auto;
+}
+
+.policy-toggle-label {
+  color: var(--success);
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+}
+
+.policy-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+  min-height: 28px;
+  margin-top: 8px;
+}
+
+.policy-message {
+  margin-right: auto;
+  color: var(--success);
+  font-size: 0.68rem;
+}
+
+.policy-actions button:disabled {
+  cursor: default;
+  opacity: 0.7;
 }
 
 /* ==========================================================================
@@ -442,12 +598,52 @@ body {
   flex-shrink: 0;
 }
 
+.event-state {
+  margin-left: auto;
+  padding: 1px 6px;
+  border: 1px solid transparent;
+  border-radius: 9999px;
+  font-family: var(--font-mono);
+  font-size: 0.62rem;
+  font-weight: 700;
+  line-height: 1.4;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.state-success {
+  background: var(--success-light);
+  border-color: var(--success-border);
+  color: var(--success);
+}
+
+.state-warning {
+  background: #fff1f2;
+  border-color: #fecdd3;
+  color: #be123c;
+}
+
+.state-pending {
+  background: var(--warning-light);
+  border-color: var(--warning-border);
+  color: var(--warning);
+}
+
 .activity-headline {
   font-size: 0.84rem;
   font-weight: 600;
   color: var(--text-main);
   line-height: 1.35;
   overflow-wrap: anywhere;
+}
+
+.activity-reason {
+  overflow: hidden;
+  color: var(--text-muted);
+  font-size: 0.7rem;
+  line-height: 1.3;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .activity-meta-tags {
@@ -559,6 +755,73 @@ body {
   border-radius: 9999px;
   font-size: 0.72rem;
   font-weight: 600;
+}
+
+.order-state-success {
+  background: var(--success-light);
+  border: 1px solid var(--success-border);
+  color: var(--success);
+}
+
+.order-state-warning {
+  background: #fff1f2;
+  border: 1px solid #fecdd3;
+  color: #be123c;
+}
+
+.order-state-pending {
+  background: var(--warning-light);
+  border: 1px solid var(--warning-border);
+  color: var(--warning);
+}
+
+.approval-panel {
+  padding: 12px 14px;
+  background: var(--warning-light);
+  border: 1px solid var(--warning-border);
+  border-radius: var(--radius-md);
+}
+
+.approval-title {
+  color: var(--text-main);
+  font-size: 0.82rem;
+  font-weight: 700;
+}
+
+.approval-panel p {
+  margin-top: 3px;
+  color: var(--text-body);
+  font-size: 0.72rem;
+}
+
+.approval-summary {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 16px;
+  margin-top: 8px;
+  color: var(--text-muted);
+  font-size: 0.72rem;
+}
+
+.approval-summary strong {
+  color: var(--text-main);
+  font-family: var(--font-mono);
+}
+
+.approval-button {
+  border: 0;
+  cursor: pointer;
+  margin-top: 9px;
+}
+
+.approval-confirmation {
+  padding: 8px 10px;
+  background: var(--success-light);
+  border: 1px solid var(--success-border);
+  border-radius: var(--radius-sm);
+  color: var(--success);
+  font-size: 0.74rem;
+  font-weight: 700;
 }
 
 .order-product-line {
@@ -990,6 +1253,20 @@ body {
     gap: 10px;
   }
 
+  .authorization-details {
+    padding: 10px 14px;
+    gap: 8px;
+  }
+
+  .policy-section {
+    padding: 0 14px 12px;
+  }
+
+  .policy-fields {
+    grid-template-columns: 1fr;
+    gap: 8px;
+  }
+
   .timeline-body {
     padding: 12px 14px;
   }
@@ -1053,6 +1330,24 @@ body {
 
   .order-select-wrap {
     max-width: 100%;
+  }
+
+  .authorization-card .card-header {
+    align-items: flex-start;
+  }
+
+  .authorization-button {
+    width: 100%;
+    justify-content: center;
+  }
+
+  .authorization-details {
+    grid-template-columns: 1fr;
+    padding: 8px 10px 10px;
+  }
+
+  .authorization-field {
+    padding: 7px 8px;
   }
 
   .order-dropdown {

@@ -108,6 +108,7 @@
           </button>
         </div>
 
+        <div class="audit-section-label">TRANSACTION AUDIT TRAIL</div>
         <div class="activity-scroll-area" id="activityFeed">
           <div class="feed-empty-state">
             <div class="spinner-ring"></div>
@@ -136,6 +137,57 @@
         </div>
       </section>
     </div>
+
+    <!-- Agent Authorization -->
+    <section class="card authorization-card" aria-labelledby="authorizationTitle">
+      <div class="card-header">
+        <div>
+          <h2 class="card-title" id="authorizationTitle">Agent Authorization</h2>
+          <p class="authorization-description">Authorize an AI agent to act on your behalf.</p>
+        </div>
+        <button class="btn-refresh authorization-button" type="button" id="generateAuthorizationBtn">
+          Generate Authorization
+        </button>
+      </div>
+
+      <div class="authorization-details">
+        <div class="authorization-field">
+          <span class="authorization-label">Agent ID</span>
+          <span class="authorization-value" id="authorizationAgentId">Not authorized</span>
+        </div>
+        <div class="authorization-field">
+          <span class="authorization-label">Authorization Token</span>
+          <span class="authorization-value" id="authorizationToken">Not generated</span>
+        </div>
+        <div class="authorization-field">
+          <span class="authorization-label">Status</span>
+          <span class="authorization-status" id="authorizationStatus">Not Authorized</span>
+        </div>
+      </div>
+
+      <div class="policy-section">
+        <div class="policy-section-title">Shopping Policy</div>
+        <div class="policy-fields">
+          <label class="policy-field">
+            <span>Maximum transaction</span>
+            <span class="policy-input-wrap"><span>₹</span><input id="policyMaximum" type="number" min="0.01" step="0.01" value="5000"></span>
+          </label>
+          <label class="policy-field">
+            <span>Approval required above</span>
+            <span class="policy-input-wrap"><span>₹</span><input id="policyApproval" type="number" min="0.01" step="0.01" value="3000"></span>
+          </label>
+          <label class="policy-field policy-toggle-field">
+            <span>Payment verification</span>
+            <input id="policyVerification" type="checkbox" checked>
+            <span class="policy-toggle-label">ON</span>
+          </label>
+        </div>
+        <div class="policy-actions">
+          <span class="policy-message" id="policyMessage" role="status"></span>
+          <button class="btn-refresh" id="savePolicyBtn" type="button">Save Policy</button>
+        </div>
+      </div>
+    </section>
 
     <!-- Bottom Section: Order Activity Timeline -->
     <section class="card card-timeline">

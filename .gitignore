@@ -80,3 +80,5 @@ pip-wheel-metadata/
 *.temp
 *.swp
 *.swo
+**/active_session.txt
+**/test_payment_data.json
